@@ -1,0 +1,28 @@
+# http://eido.databio.org/en/latest/writing-a-schema/
+description: A PEP schema for the NanoVarBench pipeline.
+imports:
+  - http://schema.databio.org/pep/2.1.0.yaml
+properties:
+  samples:
+    type: array
+    items:
+      type: object
+      properties:
+        sample_name:
+          type: string
+          description: "Name of the sample"
+        organism:
+          type: string
+          description: "Organism"
+        reads_dir:
+          type: string
+          description: "Directory containing reads for this sample"
+        reference_path:
+          type: string
+          description: "Path to the sample's reference genome"
+      required_files:
+        - reads_dir
+        - reference_path
+      files:
+        - reads_dir
+        - reference_path

@@ -1,0 +1,6 @@
+"sample_name", "organism", "reads_path", "reference_path"
+"ATCC_10708", "Salmonella_enterica", "source1", "source2"
+"ATCC_17802", "Vibrio_parahaemolyticus", "source1", "source2"
+"ATCC_25922", "Escherichia_coli", "source1", "source2"
+"ATCC_33560", "Campylobacter_jejuni", "source1", "source2"
+"ATCC_BAA-679", "Listeria_monocytogenes", "source1", "source2"

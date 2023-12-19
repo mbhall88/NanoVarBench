@@ -1,0 +1,9 @@
+from pathlib import Path
+
+PROJECT_DIR = Path().resolve()
+
+
+configfile: PROJECT_DIR / "config/config.yaml"
+pepfile: str(PROJECT_DIR / "config/pep/project_config.yaml")
+pepschema: str(PROJECT_DIR / "schemas/pep.yaml")
+

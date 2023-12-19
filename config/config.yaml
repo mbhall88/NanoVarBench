@@ -1,0 +1,12 @@
+pepfile: "config/pep/project_config.yaml"
+pepschema: "schemas/pep.yaml"
+
+# basecaller model version(s) to analyse
+model_version:
+  - "v4.2.0"
+
+# basecaller model speed(s) to analyse
+model_speed:
+  - "fast"
+  - "hac"
+  - "sup"

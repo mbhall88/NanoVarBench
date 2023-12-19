@@ -1,0 +1,9 @@
+pep_version: 2.1.0
+sample_table: "samples.csv"
+
+sample_modifiers:
+  derive:
+    attributes: [read_dir, reference_path]
+    sources:
+      source1: "/data/gpfs/projects/punim2009/data/ont/reads"
+      source2: "/data/gpfs/projects/punim2009/data/ont/references/{sample_name}.fa"
