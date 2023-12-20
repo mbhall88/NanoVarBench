@@ -1,0 +1,68 @@
+# Configuring the pipeline
+
+- [Configuring the pipeline](#configuring-the-pipeline)
+  - [`config.yaml`](#configyaml)
+  - [`pep/project_config.yaml`](#pepproject_configyaml)
+    - [`sample_table`](#sample_table)
+    - [`reads_dir`](#reads_dir)
+    - [`reference_path`](#reference_path)
+
+This directory contains files for configuring the pipeline. Instructions relevant for each files are as follows:
+
+## [`config.yaml`](./config.yaml)
+
+The pipeline configuration file.
+
+- `pepfile` is the path to the [PEP configuration file][pepconfig] (see [here](#pepproject_configyaml)).
+- `pepschema` is the path to the [PEP schema][pepschema] file (see [here](../schemas/pep.yaml)).
+- `model_version` is a list of all basecaller model versions you want to run the pipeline for.
+- `model_speed` is a list of all basecaller speeds (accuracy) you want to run the pipeline for.
+
+## [`pep/project_config.yaml`](./pep/project_config.yaml)
+
+If you are unfamiliar with PEP (Portable Encapsulated Projects), then have a read through the documentation [here][pep].
+
+### `sample_table`
+
+This is the path to the sample table, relative to this `project_config.yaml` file. The specifications for a sample table can be read [here][pepsample]. For the purposes of this pipeline, here is a list of the columns and their meaning:
+
+- `sample_name` which is a unique name for this sample (row).
+- `organism` the organism of the sample (please use underscores instead of spaces)
+- `reads_dir` see [here](#reads_dir) for more detail
+- `reference_path` see [here](#reference_path) for more detail
+
+### `reads_dir`
+
+This column indicates the directory in which the reads exist for this sample. In our sample table, you will see values like `source1`. This is replaced during PEP valdation with the value indicated in the `project_config.yaml` section `sample_modifiers` > `derive` > `sources` > `source1`. See [this guide][peppathguide] for examples of how you can incorporate `sample_name` etc. into the path dynamically (if needed). If different samples occur in different locations, create a new source variable (e.g. `source6`) and add it to the list of `sources` as in our example.
+
+There is an assumption about how this `reads_dir` is organised. The structure under this directory should follow the convention `{model_version}/{model_speed}/{sample_name}.fq.gz`, where `{model_version}` and `{model_speed}` are one of the model versions and speeds listed in [the pipeline config file](#configyaml) and `{sample_name}` is one of the sample names listed in the [sample table](#sample_table). Here is an example directory tree
+
+```
+$ tree reads_dir/
+├── v4.2.0
+│  ├── fast
+│  │  ├── ATCC_10708__202309.fq.gz
+│  │  ├── ATCC_17802__202309.fq.gz
+│  ├── hac
+│  │  ├── ATCC_10708__202309.fq.gz
+│  │  ├── ATCC_17802__202309.fq.gz
+│  └── sup
+│     ├── ATCC_10708__202309.fq.gz
+│     ├── ATCC_17802__202309.fq.gz
+└── v4.3.0
+   ├── fast
+   ├── hac
+   └── sup
+      ├── ATCC_10708__202309.fq.gz
+      ├── ATCC_17802__202309.fq.gz
+```
+
+### `reference_path`
+
+Similar to [`reads_dir`](#reads_dir), this column is a placeholder for the path to the reference genome of this sample. However, rather than being to a directory, this is a concrete path to a FASTA file. In our sample table, you will see values like `source2`. This is replaced during PEP valdation with the value indicated in the `project_config.yaml` section `sample_modifiers` > `derive` > `sources` > `source2`. An example from our config is `/data/ont/references/{sample_name}.fa`, where `{sample_name}` will be replaced with the sample name for that row, dynamically, on validation (when the pipeline is run). If you have references in various places that don't all follow the same naming convention then create a new source variable (e.g. `source8`) and add it to the list of `sources` as in our example.
+
+[pepschema]: http://eido.databio.org/en/latest/writing-a-schema/
+[pepconfig]: http://pep.databio.org/en/latest/specification/#project-config-file-specification
+[pep]: http://pep.databio.org/en/latest/
+[pepsample]: http://pep.databio.org/en/latest/specification/#sample-table-specification
+[peppathguide]: http://pep.databio.org/en/latest/howto_eliminate_paths/
