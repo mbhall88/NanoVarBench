@@ -16,6 +16,10 @@ The pipeline configuration file.
 - `pepfile` is the path to the [PEP configuration file][pepconfig] (see [here](#pepproject_configyaml)).
 - `pepschema` is the path to the [PEP schema][pepschema] file (see [here](../schemas/pep.yaml)).
 - `model` is a list of all basecaller model versions you want to run the pipeline for. The version is a key (e.g., `v4.3.0:`) and the values are a list of the [full name for the models](https://github.com/nanoporetech/dorado#available-basecalling-models) you want to analyse.
+- `QC` lists parameters for read quality control
+  - `min_length` is the minimum length of a read to keep
+  - `depth` indicates to what depth the readset will be randomly subsampled to
+  - `min_qscore` is the per read minimum mean quality score to keep
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 
@@ -36,7 +40,7 @@ This column indicates the directory in which the reads exist for this sample. In
 
 There is an assumption about how this `reads_dir` is organised. The structure under this directory should follow the convention `{model_version}/{model_name}/{sample_name}.fq.gz`, where `{model_version}` and `{model_name}` are one of the model versions and names listed in [the pipeline config file](#configyaml) and `{sample_name}` is one of the sample names listed in the [sample table](#sample_table). Here is an example directory tree
 
-```
+```text
 $ tree reads_dir/
 ├── v4.2.0
 │  ├── dna_r10.4.1_e8.2_400bps_fast@v4.2.0

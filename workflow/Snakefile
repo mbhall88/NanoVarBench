@@ -1,9 +1,22 @@
 from pathlib import Path
 
-PROJECT_DIR = Path().resolve()
+
+WORKFLOW = Path("workflow").resolve()
+CONFIG = Path("config").resolve()
+SCHEMAS = Path("schemas").resolve()
+RULES = WORKFLOW / "rules"
+ENVS = WORKFLOW / "envs"
+SCRIPTS = WORKFLOW / "scripts"
+RESULTS = Path("results").resolve()
+BENCH = RESULTS / "benchmark"
+LOGS = Path("logs/rules").resolve()
+GB = 1_000
 
 
-configfile: PROJECT_DIR / "config/config.yaml"
-pepfile: str(PROJECT_DIR / "config/pep/project_config.yaml")
-pepschema: str(PROJECT_DIR / "schemas/pep.yaml")
+configfile: CONFIG / "config.yaml"
 
+
+pepfile: str(CONFIG / "pep/project_config.yaml")
+
+
+pepschema: str(SCHEMAS / "pep.yaml")
