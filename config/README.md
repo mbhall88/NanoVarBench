@@ -15,8 +15,7 @@ The pipeline configuration file.
 
 - `pepfile` is the path to the [PEP configuration file][pepconfig] (see [here](#pepproject_configyaml)).
 - `pepschema` is the path to the [PEP schema][pepschema] file (see [here](../schemas/pep.yaml)).
-- `model_version` is a list of all basecaller model versions you want to run the pipeline for.
-- `model_speed` is a list of all basecaller speeds (accuracy) you want to run the pipeline for.
+- `model` is a list of all basecaller model versions you want to run the pipeline for. The version is a key (e.g., `v4.3.0:`) and the values are a list of the [full name for the models](https://github.com/nanoporetech/dorado#available-basecalling-models) you want to analyse.
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 
@@ -35,24 +34,24 @@ This is the path to the sample table, relative to this `project_config.yaml` fil
 
 This column indicates the directory in which the reads exist for this sample. In our sample table, you will see values like `source1`. This is replaced during PEP valdation with the value indicated in the `project_config.yaml` section `sample_modifiers` > `derive` > `sources` > `source1`. See [this guide][peppathguide] for examples of how you can incorporate `sample_name` etc. into the path dynamically (if needed). If different samples occur in different locations, create a new source variable (e.g. `source6`) and add it to the list of `sources` as in our example.
 
-There is an assumption about how this `reads_dir` is organised. The structure under this directory should follow the convention `{model_version}/{model_speed}/{sample_name}.fq.gz`, where `{model_version}` and `{model_speed}` are one of the model versions and speeds listed in [the pipeline config file](#configyaml) and `{sample_name}` is one of the sample names listed in the [sample table](#sample_table). Here is an example directory tree
+There is an assumption about how this `reads_dir` is organised. The structure under this directory should follow the convention `{model_version}/{model_name}/{sample_name}.fq.gz`, where `{model_version}` and `{model_name}` are one of the model versions and names listed in [the pipeline config file](#configyaml) and `{sample_name}` is one of the sample names listed in the [sample table](#sample_table). Here is an example directory tree
 
 ```
 $ tree reads_dir/
 ├── v4.2.0
-│  ├── fast
+│  ├── dna_r10.4.1_e8.2_400bps_fast@v4.2.0
 │  │  ├── ATCC_10708__202309.fq.gz
 │  │  ├── ATCC_17802__202309.fq.gz
-│  ├── hac
+│  ├── dna_r10.4.1_e8.2_400bps_hac@v4.2.0
 │  │  ├── ATCC_10708__202309.fq.gz
 │  │  ├── ATCC_17802__202309.fq.gz
-│  └── sup
+│  └── dna_r10.4.1_e8.2_400bps_sup@v4.2.0
 │     ├── ATCC_10708__202309.fq.gz
 │     ├── ATCC_17802__202309.fq.gz
 └── v4.3.0
-   ├── fast
-   ├── hac
-   └── sup
+   ├── dna_r10.4.1_e8.2_400bps_fast@v4.3.0
+   ├── dna_r10.4.1_e8.2_400bps_hac@v4.3.0
+   └── dna_r10.4.1_e8.2_400bps_sup@v4.3.0
       ├── ATCC_10708__202309.fq.gz
       ├── ATCC_17802__202309.fq.gz
 ```

@@ -5,5 +5,5 @@ sample_modifiers:
   derive:
     attributes: [reads_dir, reference_path]
     sources:
-      source1: "/data/gpfs/projects/punim2009/data/ont/reads"
-      source2: "/data/gpfs/projects/punim2009/data/ont/references/{sample_name}.fa"
+      source1: "/data/scratch/projects/punim2009/data/reads/simplex/"
+      source2: "/data/scratch/projects/punim2009/data/references/{sample_name}.fa"
