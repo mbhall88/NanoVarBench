@@ -24,6 +24,7 @@ pepschema: str(SCHEMAS / "pep.yaml")
 
 
 SAMPLES = pep.sample_table["sample_name"]
+DEPTHS = sorted(config["QC"]["depths"])
 VERSIONS = sorted(list(config["model"].keys()))
 MODELS = []
 for v in VERSIONS:
@@ -32,9 +33,14 @@ for v in VERSIONS:
 
 target_files = set()
 
-for version, model in itertools.product(VERSIONS, MODELS):
+for version, model, depth in itertools.product(VERSIONS, MODELS, DEPTHS):
     target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}/combined.tsv")
     target_files.add(RESULTS / f"QC/stats/postfilter/{version}/{model}/combined.tsv")
+    for sample in SAMPLES:
+        target_files.add(
+            RESULTS
+            / f"QC/downsample/{depth}x/{version}/{model}/{sample}.{depth}x.fq.gz"
+        )
 
 
 rule all:

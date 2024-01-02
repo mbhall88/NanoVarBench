@@ -86,3 +86,41 @@ use rule combine_stats_prefilter as combine_stats_postfilter with:
         md_stats=RESULTS / "QC/stats/postfilter/{version}/{model}/combined.md",
     log:
         LOGS / "combine_stats_postfilter/{version}/{model}/combined.log",
+
+
+rule faidx_reference:
+    input:
+        reference=infer_reference_genome,
+    output:
+        faidx=RESULTS / "reference/faidx/{sample}.fai",
+    log:
+        LOGS / "faidx_reference/{sample}.log",
+    resources:
+        mem_mb=500,
+        runtime="5m",
+    container:
+        "docker://quay.io/biocontainers/samtools:1.19--h50ea8bc_0"
+    shell:
+        "samtools faidx --fai-idx {output.faidx} {input.reference} 2> {log}"
+
+
+rule downsample_reads:
+    input:
+        reads=rules.filter_reads.output.reads,
+        faidx=rules.faidx_reference.output.faidx,
+    output:
+        reads=RESULTS
+        / "QC/downsample/{depth}x/{version}/{model}/{sample}.{depth}x.fq.gz",
+    log:
+        LOGS / "downsample_reads/{depth}x/{version}/{model}/{sample}.log",
+    resources:
+        mem_mb=GB,
+        runtime="1h",
+    benchmark:
+        BENCH / "downsample_reads/{depth}x/{version}/{model}/{sample}.tsv"
+    container:
+        "docker://quay.io/mbhall88/rasusa:0.7.1"
+    params:
+        seed=20240102,
+    shell:
+        "rasusa -i {input.reads} -o {output.reads} -c {wildcards.depth} -g {input.faidx} -s {params.seed} 2> {log}"
