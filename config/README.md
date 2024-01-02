@@ -18,8 +18,8 @@ The pipeline configuration file.
 - `model` is a list of all basecaller model versions you want to run the pipeline for. The version is a key (e.g., `v4.3.0:`) and the values are a list of the [full name for the models](https://github.com/nanoporetech/dorado#available-basecalling-models) you want to analyse.
 - `QC` lists parameters for read quality control
   - `min_length` is the minimum length of a read to keep
-  - `depth` indicates to what depth the readset will be randomly subsampled to
   - `min_qscore` is the per read minimum mean quality score to keep
+  - `depths` indicates to what depths the readset will be randomly subsampled to. By using multiple depths you can compare variant calling metrics across varying read depth. Only enter a single value if you don't want to do this, or set to 10000000 if you don't want subsampling.
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 

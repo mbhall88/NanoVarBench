@@ -1,4 +1,5 @@
 from pathlib import Path
+import itertools
 
 
 WORKFLOW = Path("workflow").resolve()
@@ -20,3 +21,26 @@ pepfile: str(CONFIG / "pep/project_config.yaml")
 
 
 pepschema: str(SCHEMAS / "pep.yaml")
+
+
+SAMPLES = pep.sample_table["sample_name"]
+VERSIONS = sorted(list(config["model"].keys()))
+MODELS = []
+for v in VERSIONS:
+    MODELS.extend(list(config["model"][v]))
+
+
+target_files = set()
+
+for version, model in itertools.product(VERSIONS, MODELS):
+    target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}/combined.tsv")
+    target_files.add(RESULTS / f"QC/stats/postfilter/{version}/{model}/combined.tsv")
+
+
+rule all:
+    input:
+        target_files,
+
+
+include: RULES / "common.smk"
+include: RULES / "qc.smk"

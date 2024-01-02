@@ -11,5 +11,6 @@ model:
 # Parameters for quality control
 QC:
   min_length: 1000  # remove reads shorter than this
-  depth: 100        # randomly subsample reads to this depth
-  min_qscore: 7     # per read, minimum mean quality score
+  min_qscore: 10    # per read, minimum mean quality score
+  depths:           # randomly subsample reads to these depths
+    - 100        
