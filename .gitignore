@@ -1,2 +1,4 @@
 results/
 .snakemake
+logs/
+tmp/

@@ -1,44 +1,48 @@
 rule stats_prefilter:
     input:
         reads=infer_original_reads_path,
+        reference=infer_reference_genome,
     output:
-        stats=RESULTS / "QC/stats/prefilter/{version}/{model}/{sample}.tsv",
+        stats=RESULTS / "QC/stats/prefilter/{version}/{model}/{sample}.txt",
     log:
         LOGS / "stats_prefilter/{version}/{model}/{sample}.log",
+    threads: 4
     resources:
-        mem_mb=GB,
+        mem_mb=8 * GB,
         runtime="1h",
     benchmark:
         BENCH / "stats_prefilter/{version}/{model}/{sample}.tsv"
-    container:
-        "docker://quay.io/biocontainers/seqkit:2.6.1--h9ee0642_0"
+    conda:
+        ENVS / "qc_stats.yaml"
+    params:
+        mm2_opts="-ax map-ont --secondary=no",
+        samtools_opts="-bh -F 0x900",
+        cramino_opts="--hist",
     shell:
-        "seqkit stats -Ta {input.reads} > {output.stats} 2> {log}"
+        """
+        tmpbam=$(mktemp -u --suffix .bam) 2> {log}
+        (minimap2 -t {threads} {params.mm2_opts} {input.reference} {input.reads} | \
+        samtools view {params.samtools_opts} -o "$tmpbam") 2>> {log}
+        cramino -t {threads} {params.cramino_opts} "$tmpbam" > {output.stats} 2>> {log}
+        """
 
 
 rule combine_stats_prefilter:
     input:
-        expand(
-            RESULTS / "QC/stats/prefilter/{version}/{model}/{sample}.tsv",
-            version=VERSIONS,
-            model=MODELS,
+        stats=expand(
+            RESULTS / "QC/stats/prefilter/{{version}}/{{model}}/{sample}.txt",
             sample=SAMPLES,
         ),
     output:
-        stats=RESULTS / "QC/stats/prefilter/{version}/{model}/combined.tsv",
-        md_stats=RESULTS / "QC/stats/prefilter/{version}/{model}/combined.md",
+        stats=RESULTS / "QC/stats/prefilter/{version}/{model}.csv",
     log:
-        LOGS / "combine_stats_prefilter/{version}/{model}/combined.log",
+        LOGS / "combine_stats_prefilter/{version}/{model}.log",
     resources:
-        mem_mb=int(0.5 * GB),
-        runtime="2m",
+        runtime="1m",
     container:
-        "docker://quay.io/biocontainers/csvtk:0.29.0--h9ee0642_0"
-    shell:
-        """
-        csvtk concat -tT -o {output.stats} {input} 2> {log}
-        csvtk csv2md -t -o {output.md_stats} {output.stats} 2>> {log}
-        """
+        "docker://python:3.11-slim"
+    script:
+        SCRIPTS / "combine_stats.py"
 
 
 rule filter_reads:
@@ -65,8 +69,9 @@ rule filter_reads:
 use rule stats_prefilter as stats_postfilter with:
     input:
         reads=rules.filter_reads.output.reads,
+        reference=infer_reference_genome,
     output:
-        stats=RESULTS / "QC/stats/postfilter/{version}/{model}/{sample}.tsv",
+        stats=RESULTS / "QC/stats/postfilter/{version}/{model}/{sample}.txt",
     log:
         LOGS / "stats_postfilter/{version}/{model}/{sample}.log",
     benchmark:
@@ -75,17 +80,14 @@ use rule stats_prefilter as stats_postfilter with:
 
 use rule combine_stats_prefilter as combine_stats_postfilter with:
     input:
-        expand(
-            RESULTS / "QC/stats/postfilter/{version}/{model}/{sample}.tsv",
-            version=VERSIONS,
-            model=MODELS,
+        stats=expand(
+            RESULTS / "QC/stats/postfilter/{{version}}/{{model}}/{sample}.txt",
             sample=SAMPLES,
         ),
     output:
-        stats=RESULTS / "QC/stats/postfilter/{version}/{model}/combined.tsv",
-        md_stats=RESULTS / "QC/stats/postfilter/{version}/{model}/combined.md",
+        stats=RESULTS / "QC/stats/postfilter/{version}/{model}.csv",
     log:
-        LOGS / "combine_stats_postfilter/{version}/{model}/combined.log",
+        LOGS / "combine_stats_postfilter/{version}/{model}.log",
 
 
 rule faidx_reference:
@@ -119,8 +121,34 @@ rule downsample_reads:
     benchmark:
         BENCH / "downsample_reads/{depth}x/{version}/{model}/{sample}.tsv"
     container:
-        "docker://quay.io/mbhall88/rasusa:0.7.1"
+        "docker://quay.io/mbhall88/rasusa:0.8.0"
     params:
         seed=20240102,
     shell:
         "rasusa -i {input.reads} -o {output.reads} -c {wildcards.depth} -g {input.faidx} -s {params.seed} 2> {log}"
+
+
+use rule stats_prefilter as stats_downsample with:
+    input:
+        reads=rules.downsample_reads.output.reads,
+        reference=infer_reference_genome,
+    output:
+        stats=RESULTS
+        / "QC/stats/downsample/{depth}x/{version}/{model}/{sample}.{depth}x.txt",
+    log:
+        LOGS / "stats_downsample/{depth}x/{version}/{model}/{sample}.log",
+    benchmark:
+        BENCH / "stats_downsample/{depth}x/{version}/{model}/{sample}.{depth}x.tsv"
+
+
+use rule combine_stats_prefilter as combine_stats_downsample with:
+    input:
+        stats=expand(
+            RESULTS
+            / "QC/stats/downsample/{{depth}}x/{{version}}/{{model}}/{sample}.{{depth}}x.txt",
+            sample=SAMPLES,
+        ),
+    output:
+        stats=RESULTS / "QC/stats/downsample/{depth}x/{version}/{model}.csv",
+    log:
+        LOGS / "combine_stats_downsample/{depth}x/{version}/{model}.log",

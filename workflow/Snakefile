@@ -34,12 +34,18 @@ for v in VERSIONS:
 target_files = set()
 
 for version, model, depth in itertools.product(VERSIONS, MODELS, DEPTHS):
-    target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}/combined.tsv")
-    target_files.add(RESULTS / f"QC/stats/postfilter/{version}/{model}/combined.tsv")
+    target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}.csv")
+    target_files.add(RESULTS / f"QC/stats/postfilter/{version}/{model}.csv")
+    target_files.add(RESULTS / f"QC/stats/downsample/{depth}x/{version}/{model}.csv")
+
     for sample in SAMPLES:
         target_files.add(
             RESULTS
-            / f"QC/downsample/{depth}x/{version}/{model}/{sample}.{depth}x.fq.gz"
+            / f"QC/stats/downsample/{depth}x/{version}/{model}/{sample}.{depth}x.txt"
+        )
+        target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}/{sample}.txt")
+        target_files.add(
+            RESULTS / f"QC/stats/postfilter/{version}/{model}/{sample}.txt"
         )
 
 
