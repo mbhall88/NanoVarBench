@@ -14,3 +14,8 @@ QC:
   min_qscore: 10    # per read, minimum mean quality score
   depths:           # randomly subsample reads to these depths
     - 100        
+
+# Nanopore sequencing mode - i.e., simplex, duplex
+mode:
+  - "simplex"
+  - "duplex"

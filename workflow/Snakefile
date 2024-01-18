@@ -26,6 +26,7 @@ pepschema: str(SCHEMAS / "pep.yaml")
 SAMPLES = pep.sample_table["sample_name"]
 DEPTHS = sorted(config["QC"]["depths"])
 VERSIONS = sorted(list(config["model"].keys()))
+MODES = sorted(config["mode"])
 MODELS = []
 for v in VERSIONS:
     MODELS.extend(list(config["model"][v]))
@@ -33,20 +34,12 @@ for v in VERSIONS:
 
 target_files = set()
 
-for version, model, depth in itertools.product(VERSIONS, MODELS, DEPTHS):
-    target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}.csv")
-    target_files.add(RESULTS / f"QC/stats/postfilter/{version}/{model}.csv")
-    target_files.add(RESULTS / f"QC/stats/downsample/{depth}x/{version}/{model}.csv")
-
-    for sample in SAMPLES:
-        target_files.add(
-            RESULTS
-            / f"QC/stats/downsample/{depth}x/{version}/{model}/{sample}.{depth}x.txt"
-        )
-        target_files.add(RESULTS / f"QC/stats/prefilter/{version}/{model}/{sample}.txt")
-        target_files.add(
-            RESULTS / f"QC/stats/postfilter/{version}/{model}/{sample}.txt"
-        )
+for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DEPTHS):
+    target_files.add(RESULTS / f"QC/stats/prefilter/{mode}/{version}/{model}.csv")
+    target_files.add(RESULTS / f"QC/stats/postfilter/{mode}/{version}/{model}.csv")
+    target_files.add(
+        RESULTS / f"QC/stats/downsample/{depth}x/{mode}/{version}/{model}.csv"
+    )
 
 
 rule all:

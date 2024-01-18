@@ -20,6 +20,7 @@ The pipeline configuration file.
   - `min_length` is the minimum length of a read to keep
   - `min_qscore` is the per read minimum mean quality score to keep
   - `depths` indicates to what depths the readset will be randomly subsampled to. By using multiple depths you can compare variant calling metrics across varying read depth. Only enter a single value if you don't want to do this, or set to 10000000 if you don't want subsampling.
+- `mode` lists the sequencing modes you want to test - i.e., simplex, duplex
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 
@@ -38,26 +39,32 @@ This is the path to the sample table, relative to this `project_config.yaml` fil
 
 This column indicates the directory in which the reads exist for this sample. In our sample table, you will see values like `source1`. This is replaced during PEP valdation with the value indicated in the `project_config.yaml` section `sample_modifiers` > `derive` > `sources` > `source1`. See [this guide][peppathguide] for examples of how you can incorporate `sample_name` etc. into the path dynamically (if needed). If different samples occur in different locations, create a new source variable (e.g. `source6`) and add it to the list of `sources` as in our example.
 
-There is an assumption about how this `reads_dir` is organised. The structure under this directory should follow the convention `{model_version}/{model_name}/{sample_name}.fq.gz`, where `{model_version}` and `{model_name}` are one of the model versions and names listed in [the pipeline config file](#configyaml) and `{sample_name}` is one of the sample names listed in the [sample table](#sample_table). Here is an example directory tree
+There is an assumption about how this `reads_dir` is organised. The structure under this directory should follow the convention `{mode}/{model_version}/{model_name}/{sample_name}.fq.gz`, where `{mode}`, `{model_version}` and `{model_name}` are one of the sequencing modes, model versions, and names listed in [the pipeline config file](#configyaml) and `{sample_name}` is one of the sample names listed in the [sample table](#sample_table). Here is an example directory tree
 
 ```text
 $ tree reads_dir/
-├── v4.2.0
-│  ├── dna_r10.4.1_e8.2_400bps_fast@v4.2.0
-│  │  ├── ATCC_10708__202309.fq.gz
-│  │  ├── ATCC_17802__202309.fq.gz
-│  ├── dna_r10.4.1_e8.2_400bps_hac@v4.2.0
-│  │  ├── ATCC_10708__202309.fq.gz
-│  │  ├── ATCC_17802__202309.fq.gz
-│  └── dna_r10.4.1_e8.2_400bps_sup@v4.2.0
-│     ├── ATCC_10708__202309.fq.gz
-│     ├── ATCC_17802__202309.fq.gz
-└── v4.3.0
-   ├── dna_r10.4.1_e8.2_400bps_fast@v4.3.0
-   ├── dna_r10.4.1_e8.2_400bps_hac@v4.3.0
-   └── dna_r10.4.1_e8.2_400bps_sup@v4.3.0
-      ├── ATCC_10708__202309.fq.gz
-      ├── ATCC_17802__202309.fq.gz
+└── simplex
+    └── v4.3.0
+        ├── dna_r10.4.1_e8.2_400bps_fast@v4.3.0
+        │   ├── ATCC_10708__202309.fq.gz
+        │   ├── ATCC_14035__202309.fq.gz
+        │   ├── ATCC_17802__202309.fq.gz
+        │   ├── ATCC_19119__202309.fq.gz
+        │   ├── ATCC_25922__202309.fq.gz
+        │   ├── ATCC_33560__202309.fq.gz
+        │   ├── ATCC_35221__202309.fq.gz
+        │   ├── ATCC_35897__202309.fq.gz
+        │   └── ATCC_BAA-679__202309.fq.gz
+        └── dna_r10.4.1_e8.2_400bps_sup@v4.3.0
+            ├── ATCC_10708__202309.fq.gz
+            ├── ATCC_14035__202309.fq.gz
+            ├── ATCC_17802__202309.fq.gz
+            ├── ATCC_19119__202309.fq.gz
+            ├── ATCC_25922__202309.fq.gz
+            ├── ATCC_33560__202309.fq.gz
+            ├── ATCC_35221__202309.fq.gz
+            ├── ATCC_35897__202309.fq.gz
+            └── ATCC_BAA-679__202309.fq.gz
 ```
 
 ### `reference_path`
