@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.7
+  - pyfastaq
+  - minimap2=2.26
+  - bcftools>=1.18
+  - genome_updater=0.6
+  - loguru
+  - mash=2.3

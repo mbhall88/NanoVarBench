@@ -1,3 +1,10 @@
+"""This script creates a truth VCF for a reference genome. Variants are taken from a 
+donor genome of the given species, with a given mash distance from the reference 
+genome. The variants are generated using minimap2 and dnadiff, and then merged, 
+normalised, and filtered using bcftools. The final VCF is then used to create a mutant 
+reference genome using bcftools consensus.
+"""
+
 import argparse
 import atexit
 import gzip
@@ -10,6 +17,7 @@ import sys
 import tempfile
 from collections import OrderedDict
 from pathlib import Path
+from typing import List
 from uuid import uuid4
 
 import pyfastaq
@@ -228,7 +236,7 @@ def get_mash_distances(
         sys.exit(1)
 
 
-def argclosest(array: list[float], value: float) -> int:
+def argclosest(array: List[float], value: float) -> int:
     """Takes a list of values and returns the index of the value closest to the given value"""
     return min(range(len(array)), key=lambda i: abs(array[i] - value))
 
@@ -700,7 +708,7 @@ class VcfRecord:
 
 
 def merge_and_filter_variants(
-    tmpdir: Path, vcfs: list[str], reference_genome: str, output: str, max_indel: int
+    tmpdir: Path, vcfs: List[str], reference_genome: str, output: str, max_indel: int
 ) -> None:
     tmpvcf = tmpdir / "merged.vcf"
     cmd = (

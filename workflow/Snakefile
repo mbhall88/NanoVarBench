@@ -41,6 +41,9 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
         RESULTS / f"QC/stats/downsample/{depth}x/{mode}/{version}/{model}.csv"
     )
 
+for sample in SAMPLES:
+    target_files.add(RESULTS / f"truth/{sample}/mutreference.fna")
+
 
 rule all:
     input:
@@ -49,3 +52,4 @@ rule all:
 
 include: RULES / "common.smk"
 include: RULES / "qc.smk"
+include: RULES / "truth.smk"

@@ -22,3 +22,6 @@ mode:
 
 # Maximum indel length to allow in the truth and call variant sets
 max_indel: 50
+
+# The mash distance between the reference and donor when generating the truth set
+mash_distance: 0.005
