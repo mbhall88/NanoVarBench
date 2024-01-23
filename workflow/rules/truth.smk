@@ -9,16 +9,18 @@ rule create_mutref:
     log:
         LOGS / "create_mutref/{sample}.log",
     resources:
-        mem_mb=1 * GB,
-        runtime="1h",
-    threads: 4
+        mem_mb=2 * GB,
+        runtime="6h",
+    threads: 8
     conda:
         ENVS / "create_mutref.yaml"
     params:
-        species=infer_species,
+        taxid=infer_taxid,
         distance=config["mash_distance"],
         outdir=lambda wildcards, output: Path(output.mutref).parent,
         max_indel=config["max_indel"],
+        asm_lvl='""',
+        taxonomy="ncbi",
         flags="-v --force",
     shadow:
         "shallow"
@@ -26,10 +28,12 @@ rule create_mutref:
         """
         python {input.script} \
             {params.flags} \
-            -s {params.species} \
+            -s {params.taxid} \
             -d {params.distance} \
             -t {threads} \
             -o {params.outdir} \
             -I {params.max_indel} \
+            -l {params.asm_lvl} \
+            -T {params.taxonomy} \
             {input.genome} 2> {log}
         """

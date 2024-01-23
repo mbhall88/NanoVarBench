@@ -33,7 +33,8 @@ If you are unfamiliar with PEP (Portable Encapsulated Projects), then have a rea
 This is the path to the sample table, relative to this `project_config.yaml` file. The specifications for a sample table can be read [here][pepsample]. For the purposes of this pipeline, here is a list of the columns and their meaning:
 
 - `sample_name` which is a unique name for this sample (row).
-- `organism` the organism of the sample (please use underscores instead of spaces)
+- `species` the species of the sample (please use underscores instead of spaces)
+- `taxid` the (NCBI) taxonomy ID for the species
 - `reads_dir` see [here](#reads_dir) for more detail
 - `reference_path` see [here](#reference_path) for more detail
 

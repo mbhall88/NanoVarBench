@@ -11,9 +11,12 @@ properties:
         sample_name:
           type: string
           description: "Name of the sample"
-        organism:
+        species:
           type: string
-          description: "Organism"
+          description: "Species of the sample"
+        taxid:
+          type: string
+          description: "Taxonomic ID of the species"
         reads_dir:
           type: string
           description: "Directory containing reads for this sample"

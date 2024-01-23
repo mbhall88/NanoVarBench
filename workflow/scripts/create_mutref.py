@@ -11,6 +11,7 @@ import gzip
 import operator
 import random
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -83,7 +84,7 @@ def parse_args():
         "-l",
         "--asmlvl",
         default="complete genome",
-        help="Assembly level. (comma-separated entries, empty for all) [complete genome, chromosome, scaffold, contig]",
+        help="Assembly level. (comma-separated entries, empty ('') for all) [complete genome, chromosome, scaffold, contig]",
     )
     parser.add_argument(
         "-T",

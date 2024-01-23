@@ -9,3 +9,4 @@ dependencies:
   - genome_updater=0.6
   - loguru
   - mash=2.3
+  - mummer4=4.0.0rc1
