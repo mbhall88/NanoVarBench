@@ -19,3 +19,6 @@ QC:
 mode:
   - "simplex"
   - "duplex"
+
+# Maximum indel length to allow in the truth and call variant sets
+max_indel: 50

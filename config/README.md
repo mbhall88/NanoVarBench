@@ -21,6 +21,7 @@ The pipeline configuration file.
   - `min_qscore` is the per read minimum mean quality score to keep
   - `depths` indicates to what depths the readset will be randomly subsampled to. By using multiple depths you can compare variant calling metrics across varying read depth. Only enter a single value if you don't want to do this, or set to 10000000 if you don't want subsampling.
 - `mode` lists the sequencing modes you want to test - i.e., simplex, duplex
+- `max_indel` the maximum indel length that will be allowed in the truth variants and assessed in the called variants.
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 
