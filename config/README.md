@@ -22,7 +22,11 @@ The pipeline configuration file.
   - `depths` indicates to what depths the readset will be randomly subsampled to. By using multiple depths you can compare variant calling metrics across varying read depth. Only enter a single value if you don't want to do this, or set to 10000000 if you don't want subsampling.
 - `mode` lists the sequencing modes you want to test - i.e., simplex, duplex
 - `max_indel` the maximum indel length that will be allowed in the truth variants and assessed in the called variants.
-- `mash_distance` The [mash] distance between the reference and donor when generating the truth set. The closest distance will be chosen. Mash distance approximates the sequence divergence (i.e., 1-ANI).
+- `truth` parameters related to the generation of the truth set of variants
+  - `mash_distance` The [mash] distance between the reference and donor when generating the truth set. The closest distance will be chosen. Mash distance approximates the sequence divergence (i.e., 1-ANI).
+  - `min_mash_distance` The minimum mash distance between the reference and donor when generating the truth set
+  - `max_mash_distance` The maximum mash distance between the reference and donor when generating the truth set
+  - `max_assemblies` The maximum number of assemblies to download for distance calculation
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 

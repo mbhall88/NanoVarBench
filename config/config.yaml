@@ -20,8 +20,15 @@ mode:
   - "simplex"
   - "duplex"
 
-# Maximum indel length to allow in the truth and call variant sets
-max_indel: 50
-
-# The mash distance between the reference and donor when generating the truth set
-mash_distance: 0.005
+# parameters related to the truth set generation
+truth:
+  # Maximum indel length to allow in the truth and call variant sets
+  max_indel: 50
+  # The desired mash distance between the reference and donor when generating the truth set
+  mash_distance: 0.005
+  # The minimum mash distance between the reference and donor when generating the truth set
+  min_mash_distance: 0.002
+  # The maximum mash distance between the reference and donor when generating the truth set
+  max_mash_distance: 0.015
+  # The maximum number of assemblies to download for distance calculation
+  max_assemblies: 10000

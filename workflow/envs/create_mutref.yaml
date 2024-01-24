@@ -10,3 +10,4 @@ dependencies:
   - loguru
   - mash=2.3
   - mummer4=4.0.0rc1
+  - intervaltree=3

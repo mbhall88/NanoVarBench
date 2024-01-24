@@ -11,17 +11,17 @@ import gzip
 import operator
 import random
 import re
-import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 from uuid import uuid4
 
 import pyfastaq
+from intervaltree import Interval, IntervalTree
 from loguru import logger
 
 MIN_BCFTOOLS_VERSION = "1.18"
@@ -72,6 +72,20 @@ def parse_args():
         help="Pick genome with mash distance closest to this value",
     )
     parser.add_argument(
+        "-m",
+        "--min-distance",
+        type=float,
+        default=0.0,
+        help="Minimum mash distance to consider",
+    )
+    parser.add_argument(
+        "-M",
+        "--max-distance",
+        type=float,
+        default=1.0,
+        help="Maximum mash distance to consider",
+    )
+    parser.add_argument(
         "-c",
         "--no-cleanup",
         action="store_true",
@@ -98,6 +112,13 @@ def parse_args():
         "--database",
         default="refseq",
         help="Database to use (comma-separated entries) [refseq, genbank]",
+    )
+    parser.add_argument(
+        "-A",
+        "--max-asm",
+        type=int,
+        default=10_000,
+        help="Maximum number of assemblies to download. 0 for all",
     )
     parser.add_argument(
         "-S", "--sketch-size", type=int, default=10000, help="Mash sketch size"
@@ -147,7 +168,13 @@ def check_bcftools_version(min_version: str) -> None:
 
 
 def download_genomes(
-    tmpdir: str, database: str, taxonomy: str, species: str, threads: int, asmlvl: str
+    tmpdir: str,
+    database: str,
+    taxonomy: str,
+    species: str,
+    threads: int,
+    asmlvl: str,
+    max_asm: int = 0,
 ):
     args = [
         "genome_updater.sh",
@@ -163,6 +190,8 @@ def download_genomes(
         taxonomy,
         "-T",
         species,
+        "-A",
+        f"species:{max_asm}",
         "-m",
         "-a",
         "-t",
@@ -216,7 +245,6 @@ def get_mash_distances(
     query_genome: str,
     dist_mtx: str,
     threads: int,
-    mash_distance: float,
     sketch_size: int,
 ) -> None:
     cmd = f"mash dist -p {threads} -s {sketch_size} {sketch_file} {query_genome} | sort -g -k3"
@@ -237,9 +265,10 @@ def get_mash_distances(
         sys.exit(1)
 
 
-def argclosest(array: List[float], value: float) -> int:
-    """Takes a list of values and returns the index of the value closest to the given value"""
-    return min(range(len(array)), key=lambda i: abs(array[i] - value))
+def argclosest(array: List[Tuple[float, int]], value: float) -> Tuple[float, int]:
+    """Takes a list of tuples (distance, index) and returns the index of the distance closest to the given value"""
+    argmin = min(range(len(array)), key=lambda i: abs(array[i][0] - value))
+    return array[argmin]
 
 
 def is_file_gzipped(file: str) -> bool:
@@ -716,7 +745,8 @@ def merge_and_filter_variants(
         f"bcftools concat -Da {' '.join(vcfs)} | "
         f"bcftools norm -f {reference_genome} -a -c e -m - |"
         "bcftools norm -aD |"
-        "bcftools annotate --remove QUAL - |"
+        "bcftools +remove-overlaps - |"
+        "bcftools annotate --remove QUAL,INFO/VTYPE,INFO/QNAME,INFO/QSTRAND,INFO/QSTART - |"
         f"bcftools filter -e 'abs(ILEN)>{max_indel}' -o {tmpvcf}"
     )
     logger.debug(f"Running bcftools pipeline: {cmd}")
@@ -749,7 +779,11 @@ def merge_and_filter_variants(
                     fields[2] = new_id
                     vcf_out.write("\t".join(fields))
 
-    cmd = f"bcftools view --write-index -o {output} {tmp_uid_vcf}"
+    logger.debug("Removing overlapping variants...")
+    rm_overlap_vcf = tmpdir / "rm_overlap.vcf"
+    remove_overlaps(tmp_uid_vcf, rm_overlap_vcf)
+
+    cmd = f"bcftools view --write-index -o {output} {rm_overlap_vcf}"
     logger.debug(f"Running bcftools view: {cmd}")
     proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
@@ -757,6 +791,70 @@ def merge_and_filter_variants(
         logger.error(f"bcftools view failed with return code {proc.returncode}")
         logger.error(proc.stderr)
         sys.exit(1)
+
+
+def remove_overlaps(input: str, output: str) -> None:
+    """Removes overlapping variants from a VCF file"""
+    intervals = defaultdict(IntervalTree)
+    n_records = 0
+    with open(input, "r") as vcf_in:
+        for line in vcf_in:
+            if line.startswith("#"):
+                continue
+            n_records += 1
+            fields = line.split("\t")
+            chrom = fields[0]
+            pos = int(fields[1])
+            ref = fields[3]
+            alt = fields[4]
+            vid = fields[2]
+
+            if "," in alt:
+                logger.error(
+                    f"Cannot remove overlapping variants from VCF with multiple ALTs at line:\n{line}"
+                )
+                sys.exit(1)
+            if len(ref) == len(alt):
+                # SNP
+                iv = Interval(pos, pos + len(ref), vid)
+            elif len(ref) > len(alt):
+                # deletion
+                iv = Interval(pos, pos + len(ref), vid)
+            else:
+                # insertion
+                iv = Interval(pos, pos + len(alt), vid)
+
+            intervals[chrom].add(iv)
+
+    ids_to_keep = non_overlapping_intervals(intervals)
+    with open(output, "w") as vcf_out, open(input, "r") as vcf_in:
+        for line in vcf_in:
+            if line.startswith("#"):
+                vcf_out.write(line)
+            else:
+                vid = line.split("\t")[2]
+                if vid in ids_to_keep:
+                    vcf_out.write(line)
+
+    logger.debug(f"Removed {n_records - len(ids_to_keep)} overlapping variants")
+
+
+def non_overlapping_intervals(tree: Dict[str, IntervalTree]) -> IntervalTree:
+    keep = set()
+    for tree in tree.values():
+        for iv in tree:
+            vid = iv.data
+            overlaps = list(tree.overlap(iv))
+            if len(overlaps) == 1:
+                assert overlaps[0].data == vid
+                keep.add(vid)
+            elif len(overlaps) == 0:
+                logger.error(
+                    f"No overlapping variants found for {vid} - not even with itself"
+                )
+                sys.exit(1)
+
+    return keep
 
 
 def shortuuid(length: int = 8, seed=None) -> str:
@@ -856,6 +954,7 @@ def main():
             args.species,
             args.threads,
             args.asmlvl,
+            args.max_asm,
         )
         # get all files with extension fna.gz in the tmpdir
         genomes = [p.resolve() for p in tmpdir.rglob("*.fna.gz")]
@@ -898,15 +997,27 @@ def main():
         args.reference_genome,
         str(dist_mtx),
         args.threads,
-        args.mash_distance,
         args.sketch_size,
     )
 
+    logger.info(f"You can find the full list of genomes and distances in {dist_mtx}")
+
     with open(dist_mtx, "r") as f:
-        distances = [float(line.split("\t")[2]) for line in f if f]
+        distances = []
+        for i, line in enumerate(f):
+            fields = line.strip().split("\t")
+            dist = float(fields[2])
+            if args.min_distance <= dist <= args.max_distance:
+                distances.append((dist, i))
+
+    if len(distances) == 0:
+        logger.error(
+            f"No genomes found with a mash distance between {args.min_distance} and {args.max_distance}"
+        )
+        sys.exit(1)
 
     # get the index of the line closest to mash_distance
-    lineno = argclosest(distances, args.mash_distance)
+    _, lineno = argclosest(distances, args.mash_distance)
 
     # get the genome name from the line number
     with open(dist_mtx, "r") as f:
@@ -918,7 +1029,6 @@ def main():
     logger.success(
         f"Using {donor_genome.name}, which has a mash distance of {donor_dist} and {donor_shared_hashes} shared hashes"
     )
-    logger.info(f"You can find the full list of genomes and distances in {dist_mtx}")
 
     # copy the genome to the output directory and decompress it if necessary
     mutdonor = outdir / "mutdonor.fna"
