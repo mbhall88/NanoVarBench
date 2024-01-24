@@ -9,6 +9,7 @@ RULES = WORKFLOW / "rules"
 ENVS = WORKFLOW / "envs"
 SCRIPTS = WORKFLOW / "scripts"
 RESULTS = Path("results").resolve()
+FIGURES = RESULTS / "figures"
 BENCH = RESULTS / "benchmark"
 LOGS = Path("logs/rules").resolve()
 GB = 1_000
@@ -42,7 +43,7 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
     )
 
 for sample in SAMPLES:
-    target_files.add(RESULTS / f"truth/{sample}/mutreference.fna")
+    target_files.add(FIGURES / f"plot_synteny/{sample}/minimap2.plotsr.png")
 
 
 rule all:

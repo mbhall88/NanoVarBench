@@ -9,6 +9,7 @@ rule create_mutref:
         mutref=RESULTS / "truth/{sample}/mutreference.fna",
         truth_vcf=RESULTS / "truth/{sample}/truth.vcf.gz",
         stats=RESULTS / "truth/{sample}/vcfstats.txt",
+        mutdonor=RESULTS / "truth/{sample}/mutdonor.fna",
     log:
         LOGS / "create_mutref/{sample}.log",
     resources:
@@ -45,4 +46,33 @@ rule create_mutref:
             -T {params.taxonomy} \
             -A {params.max_asm} \
             {input.genome} 2> {log}
+        """
+
+rule plot_synteny:
+    input:
+        reference=rules.create_mutref.input.genome,
+        donor=rules.create_mutref.output.mutdonor,
+        script=SCRIPTS / "plot_synteny.py",
+    output:
+        minimap2_plot=FIGURES / "plot_synteny/{sample}/minimap2.plotsr.png",
+        nucmer_plot=FIGURES / "plot_synteny/{sample}/nucmer.plotsr.png",
+    log:
+        LOGS / "plot_synteny/{sample}.log",
+    threads: 2
+    resources:
+        mem_mb=2 * GB,
+        runtime="20m",
+    conda:
+        ENVS / "plot_synteny.yaml"
+    params:
+        outdir=lambda wildcards, output: Path(output.minimap2_plot).parent,
+        flags="-v",
+    shell:
+        """
+        python {input.script} \
+            {params.flags} \
+            -t {threads} \
+            -o {params.outdir} \
+            --ref {input.reference} \
+            --donor {input.donor} 2> {log}
         """
