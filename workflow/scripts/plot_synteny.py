@@ -14,6 +14,23 @@ LOG_FMT = (
     "[<green>{time:YYYY-MM-DD HH:mm:ss}</green>] <level>{level: <8}</level> | "
     "<level>{message}</level>"
 )
+PLOTSR_CONFIG = """## COLOURS and transparency for alignments (syntenic, inverted, translocated, and duplicated)
+syncol:#CCCCCC
+invcol:#FFA500
+tracol:#9ACD32
+dupcol:#00BBFF
+alpha:0.8
+
+## Margins and dimensions:
+chrmar:0.1              ## Adjusts the gap between chromosomes and tracks. Higher values leads to more gap
+exmar:0.1               ## Extra margin at the top and bottom of plot area
+
+## LEGEND
+legend:T                ## To plot legend use T, use F to not plot legend
+genlegcol:1            ## Number of columns for genome legend, set -1 for automatic setup
+bbox:0,1.01,0.5,0.3     ## [Left edge, bottom edge, width, height]
+bbox_v:0,1.1,0.5,0.3    ## For vertical chromosomes (using -v option)
+bboxmar:0.5             ## Margin between genome and annotation legends"""
 
 
 def setup_logging(verbose: bool, quiet: bool) -> None:
@@ -191,13 +208,18 @@ def main():
         sys.exit(1)
 
     logger.info("Running plotsr on nucmer alignment...")
+    config = tmpdir / "plotsr.config"
+    config.write_text(PLOTSR_CONFIG)
+    plotsr_opts = f"--cfg {config}"
     genomes = tmpdir / "genomes.txt"
     with open(genomes, "w") as f:
         print(f"{ref}\treference\tlw:1.5", file=f)
         print(f"{donor}\tdonor\tlw:1.5", file=f)
 
     nucmer_plot = outdir / "nucmer.plotsr.png"
-    cmd = f"plotsr --sr {nucmer_syri} -o {nucmer_plot} --genomes {genomes}"
+    cmd = (
+        f"plotsr {plotsr_opts} --sr {nucmer_syri} -o {nucmer_plot} --genomes {genomes}"
+    )
     logger.debug("Running plotsr command: {}", cmd)
     proc = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE)
     if proc.returncode != 0:
@@ -208,7 +230,7 @@ def main():
 
     logger.info("Running plotsr on minimap2 alignment...")
     mm2_plot = outdir / "minimap2.plotsr.png"
-    cmd = f"plotsr --sr {mm2_syri} -o {mm2_plot} --genomes {genomes}"
+    cmd = f"plotsr {plotsr_opts} --sr {mm2_syri} -o {mm2_plot} --genomes {genomes}"
     logger.debug("Running plotsr command: {}", cmd)
     proc = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE)
     if proc.returncode != 0:
