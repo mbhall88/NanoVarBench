@@ -8,6 +8,3 @@ dependencies:
   - minimap2=2.26
   - mummer4=4.0.0rc1
   - loguru
-  - pip
-  - pip:
-    - git+https://github.com/schneebergerlab/fixchr.git@018156c8b367e33c41ed09c408957a2f25e698d5
