@@ -3,7 +3,7 @@ set -euxo pipefail
 
 dorado=dorado
 kit=""
-subcommand="basecall"
+subcommand="basecaller"
 
 function print_usage_and_exit() {
     echo "Usage: $0 [-m model] [-d model_dir] [-r run_dir] [-k barcode_kit] [-D dorado_exec] [-o outdir] [-x]" >&2
