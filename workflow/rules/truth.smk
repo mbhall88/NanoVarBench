@@ -28,7 +28,7 @@ rule create_mutref:
         max_indel=truth_config["max_indel"],
         asm_lvl='""',
         taxonomy="ncbi",
-        flags="-v --force",
+        flags="-vv --force",
     shadow:
         "shallow"
     shell:

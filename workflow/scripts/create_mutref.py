@@ -41,10 +41,12 @@ var_types = {
 }
 
 
-def setup_logging(verbose: bool, quiet: bool) -> None:
+def setup_logging(verbose: int = 0, quiet: bool = False) -> None:
     log_lvl = "INFO"
-    if verbose:
+    if verbose == 1:
         log_lvl = "DEBUG"
+    elif verbose > 1:
+        log_lvl = "TRACE"
     elif quiet:
         log_lvl = "ERROR"
     logger.remove()
@@ -136,12 +138,24 @@ def parse_args():
         "-I", "--max-indel", type=int, default=50, help="Maximum indel size"
     )
     parser.add_argument(
+        "-O",
+        "--remove-overlaps",
+        action="store_true",
+        help="Remove valid variants whose ALT start and end overlap (see https://github.com/samtools/bcftools/issues/2082)",
+    )
+    parser.add_argument(
         "-F",
         "--force",
         action="store_true",
         help="Force overwrite existing output directory",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase verbosity level. Can be used multiple times",
+    )
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet logging")
     return parser.parse_args()
 
@@ -211,6 +225,8 @@ def download_genomes(
         logger.error("Error downloading genomes")
         logger.error(proc.stdout)
         sys.exit(1)
+    else:
+        logger.trace(f"genome_updater.sh output:\n{proc.stdout}")
 
 
 def sketch_genomes(fofn: str, outprefix: str, threads: int, sketch_size: int) -> None:
@@ -238,6 +254,8 @@ def sketch_genomes(fofn: str, outprefix: str, threads: int, sketch_size: int) ->
         logger.error("Error sketching genomes")
         logger.error(proc.stdout)
         sys.exit(1)
+    else:
+        logger.trace(f"mash sketch output:\n{proc.stdout}")
 
 
 def get_mash_distances(
@@ -263,6 +281,8 @@ def get_mash_distances(
         logger.error("Error running mash dist")
         logger.error(proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"mash dist output:\n{proc.stderr}")
 
 
 def argclosest(array: List[Tuple[float, int]], value: float) -> Tuple[float, int]:
@@ -298,6 +318,8 @@ def generate_minimap2_variants(
         logger.error("Error running minimap2")
         logger.error(proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"minimap2 output:\n{proc.stderr}")
 
 
 def generate_dnadiff_variants(
@@ -328,6 +350,8 @@ def generate_dnadiff_variants(
         logger.error("Error running bcftools sort")
         logger.error(proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"bcftools sort output:\n{proc.stderr}")
 
 
 def run_dnadiff(
@@ -353,6 +377,8 @@ def run_dnadiff(
         logger.error("Error running nucmer")
         logger.error(nucmer_proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"nucmer output:\n{nucmer_proc.stderr}")
 
     filter_cmd = f"delta-filter -1 {delta} > {delta_1}"
 
@@ -363,6 +389,8 @@ def run_dnadiff(
         logger.error("Error running delta-filter")
         logger.error(filter_proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"delta-filter output:\n{filter_proc.stderr}")
 
     snps_cmd = f"show-snps -rlTHC {delta_1} > {snps_file}"
 
@@ -373,6 +401,8 @@ def run_dnadiff(
         logger.error("Error running show-snps")
         logger.error(snps_proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"show-snps output:\n{snps_proc.stderr}")
 
 
 def snps_file_to_vcf(snps_file: str, reference_genome: str, vcf: str):
@@ -738,7 +768,12 @@ class VcfRecord:
 
 
 def merge_and_filter_variants(
-    tmpdir: Path, vcfs: List[str], reference_genome: str, output: str, max_indel: int
+    tmpdir: Path,
+    vcfs: List[str],
+    reference_genome: str,
+    output: str,
+    max_indel: int,
+    remove_valid_overlaps: bool = False,
 ) -> None:
     tmpvcf = tmpdir / "merged.vcf"
     cmd = (
@@ -756,6 +791,8 @@ def merge_and_filter_variants(
         logger.error(f"bcftools pipeline failed with return code {proc.returncode}")
         logger.error(proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"bcftools pipeline output:\n{proc.stderr}")
 
     logger.debug("Adding UIDs to VCF records")
 
@@ -779,9 +816,12 @@ def merge_and_filter_variants(
                     fields[2] = new_id
                     vcf_out.write("\t".join(fields))
 
-    logger.debug("Removing overlapping variants...")
-    rm_overlap_vcf = tmpdir / "rm_overlap.vcf"
-    remove_overlaps(tmp_uid_vcf, rm_overlap_vcf)
+    if remove_valid_overlaps:
+        logger.debug("Removing (valid) overlapping variants...")
+        rm_overlap_vcf = tmpdir / "rm_overlap.vcf"
+        remove_overlaps(tmp_uid_vcf, rm_overlap_vcf)
+    else:
+        rm_overlap_vcf = tmp_uid_vcf
 
     cmd = f"bcftools view --write-index -o {output} {rm_overlap_vcf}"
     logger.debug(f"Running bcftools view: {cmd}")
@@ -791,6 +831,8 @@ def merge_and_filter_variants(
         logger.error(f"bcftools view failed with return code {proc.returncode}")
         logger.error(proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"bcftools view output:\n{proc.stderr}")
 
 
 def remove_overlaps(input: str, output: str) -> None:
@@ -907,6 +949,8 @@ def create_mutant_reference(reference_genome: str, variants: str, output: str) -
         logger.error(f"bcftools consensus failed with return code {proc.returncode}")
         logger.error(proc.stderr)
         sys.exit(1)
+    else:
+        logger.trace(f"bcftools consensus output:\n{proc.stderr}")
 
 
 def main():
@@ -1079,6 +1123,7 @@ def main():
         str(reference_genome),
         str(final_vcf),
         args.max_indel,
+        args.remove_overlaps,
     )
 
     logger.success(f"Final truth variants saved to {final_vcf}")
