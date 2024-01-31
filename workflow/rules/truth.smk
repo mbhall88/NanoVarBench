@@ -28,7 +28,7 @@ rule create_mutref:
         max_indel=truth_config["max_indel"],
         asm_lvl='""',
         taxonomy="ncbi",
-        flags="-vv --force",
+        flags="--remove-overlaps -vv --force",  # -O see https://github.com/mbhall88/NanoVarBench/issues/5
     shadow:
         "shallow"
     shell:
@@ -47,6 +47,27 @@ rule create_mutref:
             -A {params.max_asm} \
             {input.genome} 2> {log}
         """
+
+
+
+rule mutref_summary:
+    input:
+        logs=expand(LOGS / "create_mutref/{sample}.log", sample=SAMPLES),
+    output:
+        csv=TABLES / "mutref_summary.csv",
+        latex=TABLES / "mutref_summary.tex",
+    log:
+        LOGS / "mutref_summary.log",
+    resources:
+        mem_mb=500,
+        runtime="5m",
+    conda:
+        ENVS / "mutref_summary.yaml"
+    params:
+        samples2species={sample: infer_species(sample) for sample in SAMPLES},
+    script:
+        SCRIPTS / "mutref_summary.py"
+
 
 rule plot_synteny:
     input:

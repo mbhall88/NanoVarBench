@@ -13,8 +13,8 @@ def infer_reference_genome(wildcards):
     return Path(pep.get_sample(wildcards.sample)["reference_path"])
 
 
-def infer_species(wildcards):
-    return pep.get_sample(wildcards.sample)["species"]
+def infer_species(sample):
+    return pep.get_sample(sample)["species"]
 
 
 def infer_taxid(wildcards):

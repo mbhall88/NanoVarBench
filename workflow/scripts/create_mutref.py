@@ -950,6 +950,13 @@ def create_mutant_reference(reference_genome: str, variants: str, output: str) -
         logger.error(proc.stderr)
         sys.exit(1)
     else:
+        log = proc.stderr
+        if "overlaps with another variant" in log:
+            logger.error(
+                "bcftools consensus warned there are overlapping variants. This should not happen."
+            )
+            logger.error(log)
+            sys.exit(1)
         logger.trace(f"bcftools consensus output:\n{proc.stderr}")
 
 
