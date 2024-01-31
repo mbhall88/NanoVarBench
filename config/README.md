@@ -27,6 +27,7 @@ The pipeline configuration file.
   - `min_mash_distance` The minimum mash distance between the reference and donor when generating the truth set
   - `max_mash_distance` The maximum mash distance between the reference and donor when generating the truth set
   - `max_assemblies` The maximum number of assemblies to download for distance calculation
+- `repeat` the number of times to repeat each variant calling rule. This is intended for benchmarking purposes and can be set to 1 for normal use.
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 

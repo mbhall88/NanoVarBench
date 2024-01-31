@@ -10,7 +10,7 @@ rule align_to_self:
     threads: 4
     resources:
         mem_mb=4 * GB,
-        runtime="30m",
+        runtime="5m",
     benchmark:
         BENCH / "align_to_self/{depth}x/{mode}/{version}/{model}/{sample}.tsv"
     conda:

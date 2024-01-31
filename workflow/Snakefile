@@ -33,6 +33,8 @@ MODELS = []
 for v in VERSIONS:
     MODELS.extend(list(config["model"][v]))
 
+CALLERS = config["callers"]
+
 
 target_files = set()
 
@@ -51,6 +53,11 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
             RESULTS
             / f"align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam"
         )
+        for caller in CALLERS:
+            target_files.add(
+                RESULTS
+                / f"call/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.vcf.gz"
+            )
 
 for sample in SAMPLES:
     target_files.add(FIGURES / f"plot_synteny/{sample}/minimap2.plotsr.png")
@@ -67,3 +74,4 @@ include: RULES / "common.smk"
 include: RULES / "qc.smk"
 include: RULES / "truth.smk"
 include: RULES / "align.smk"
+include: RULES / "call.smk"

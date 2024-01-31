@@ -9,7 +9,7 @@ rule stats_prefilter:
     threads: 4
     resources:
         mem_mb=8 * GB,
-        runtime="1h",
+        runtime="15m",
     benchmark:
         BENCH / "stats_prefilter/{mode}/{version}/{model}/{sample}.tsv"
     conda:
@@ -95,7 +95,7 @@ rule faidx_reference:
     input:
         reference=infer_reference_genome,
     output:
-        faidx=RESULTS / "reference/faidx/{sample}.fai",
+        faidx=RESULTS / "reference/faidx/{sample}.fa.fai",
     log:
         LOGS / "faidx_reference/{sample}.log",
     resources:
@@ -118,7 +118,7 @@ rule downsample_reads:
         LOGS / "downsample_reads/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
         mem_mb=GB,
-        runtime="1h",
+        runtime="15m",
     benchmark:
         BENCH / "downsample_reads/{depth}x/{mode}/{version}/{model}/{sample}.tsv"
     container:

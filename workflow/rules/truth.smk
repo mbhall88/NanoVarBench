@@ -49,6 +49,14 @@ rule create_mutref:
         """
 
 
+use rule faidx_reference as faidx_mutref with:
+    input:
+        reference=rules.create_mutref.output.mutref,
+    output:
+        faidx=RESULTS / "truth/{sample}/mutreference.fna.fai",
+    log:
+        LOGS / "faidx_mutref/{sample}.log",
+
 
 rule mutref_summary:
     input:

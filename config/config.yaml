@@ -32,3 +32,14 @@ truth:
   max_mash_distance: 0.015
   # The maximum number of assemblies to download for distance calculation
   max_assemblies: 10000
+
+# number of times to repeat running the variant calling rules. This is intended for 
+# benchmarking purposes only, and should be set to 1 for normal use.
+repeat: 1
+
+callers:
+  bcftools:
+    threads: 4
+    memory: 8000
+    runtime: "1h"
+    container: "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
