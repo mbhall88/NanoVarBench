@@ -31,7 +31,7 @@ for caller, caller_config in CALLERS.items():
             shadow:
                 "shallow"
             script:
-                SCRIPTS / f"callers/{caller}.sh"
+                SCRIPTS / f"callers/{caller}.{caller_config.get('extension', 'sh')}"
 
     elif "conda" in caller_config:
 
@@ -63,7 +63,7 @@ for caller, caller_config in CALLERS.items():
             shadow:
                 "shallow"
             script:
-                SCRIPTS / f"callers/{caller}.sh"
+                SCRIPTS / f"callers/{caller}.{caller_config.get('extension', 'sh')}"
 
     else:
         raise KeyError(f"Caller {caller} has no container or conda environment")

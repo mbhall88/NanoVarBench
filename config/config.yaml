@@ -41,5 +41,6 @@ callers:
   bcftools:
     threads: 4
     memory: 8000
-    runtime: "1h"
+    runtime: "2h"
     container: "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
+    extension: "sh"

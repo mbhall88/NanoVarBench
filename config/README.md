@@ -2,6 +2,8 @@
 
 - [Configuring the pipeline](#configuring-the-pipeline)
   - [`config.yaml`](#configyaml)
+    - [Variant caller configuration](#variant-caller-configuration)
+      - [Example](#example)
   - [`pep/project_config.yaml`](#pepproject_configyaml)
     - [`sample_table`](#sample_table)
     - [`reads_dir`](#reads_dir)
@@ -28,6 +30,64 @@ The pipeline configuration file.
   - `max_mash_distance` The maximum mash distance between the reference and donor when generating the truth set
   - `max_assemblies` The maximum number of assemblies to download for distance calculation
 - `repeat` the number of times to repeat each variant calling rule. This is intended for benchmarking purposes and can be set to 1 for normal use.
+- `callers` see the [callers section](#variant-caller-configuration).
+
+### Variant caller configuration
+
+In the interest of making it easier to add/remove variant callers to the benchmark, there are some specific configuration requirements for variant caller addition. There are two sections (three if using conda) where the pipeline requires information.
+
+1. The `callers` section of [the pipeline `config.yaml` file](#configyaml). The key must be your name for the caller (this does not have to be the name of the command used to run the tool). Followed by nested key-value pairs for
+   - `container`: (required if `conda` not given) the location of the container to run the job in.
+   - `conda`: (required if `container` not given) the conda environment to run the job in. If providing a path to an environment file, the path is interpreted as relative to the Snakefile that contains the caller rule. An absolute path can also be given.
+   - `threads`: (optional) number of threads to use for the caller. Defaults to 4.
+   - `memory`: (optional) the memory (MB) to request for the job. Defaults to 16000.
+   - `runtime`: (optional) the [runtime] for the job.  It can be given as string defining a time span or as integer defining minutes. In the former case, the time span can be defined as a string with a number followed by a unit (ms, s, m, h, d, w, y for seconds, minutes, hours, days, and years, respectively). Defaults to `1h` (one hour).
+   - `extension`: The extension of the script (see below) used for running the caller. Defaults to `sh`.
+2. A script that runs the variant caller. This is executed as a [Snakemake script][smk-script]. By default, the configuration assumes this is a Bash script, however, any of the accepted scripting languages can be used (ensure you provide the `extension` key in the configuration). See [the caller rules](../workflow/rules/call.smk) for the files and parameters available in the `snakemake` object in the scrpt. The script **must be named/located at `workflow/scripts/callers/<caller>.<extension>`**, where `<caller>` is the name of the caller provided in the config file, and `<extension>` is the `extensions` key (`sh` by default). 
+3. (optional) a conda environment file. The location to the file must be given in the `conda` key of the caller configuration on the `config.yaml` file (see above). Try and be specific with the versions to ensure reproducibility.
+
+#### Example
+
+**Configuration**
+
+```yaml
+callers:
+  bcftools:
+    threads: 4
+    memory: 8000
+    runtime: "2h"
+    container: "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
+    extension: "sh"
+```
+
+**Script**
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec 2>"${snakemake_log[0]}" # send all stderr from this script to the log file
+
+aln="${snakemake_input[alignment]}"
+ref="${snakemake_input[reference]}"
+outvcf="${snakemake_output[vcf]}"
+
+bcftools mpileup -f "$ref" \
+    -a FORMAT/AD,FORMAT/ADF,FORMAT/ADR,FORMAT/DP,FORMAT/SP,INFO/AD,INFO/ADF,INFO/ADR \
+    -Ou --threads "${snakemake[threads]}" -Q 10 -x -M 10000 -h 100 "$aln" |
+    bcftools call --ploidy 1 --threads "${snakemake[threads]}" -m --prior 0.005 \
+        -o "$outvcf" --variants-only
+```
+
+**Conda environment**
+
+```yaml
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bcftools=1.19
+```
 
 ## [`pep/project_config.yaml`](./pep/project_config.yaml)
 
@@ -85,3 +145,5 @@ Similar to [`reads_dir`](#reads_dir), this column is a placeholder for the path 
 [pepsample]: http://pep.databio.org/en/latest/specification/#sample-table-specification
 [peppathguide]: http://pep.databio.org/en/latest/howto_eliminate_paths/
 [mash]: https://github.com/marbl/Mash
+[runtime]: https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#snakefiles-standard-resources
+[smk-script]: https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#external-scripts
