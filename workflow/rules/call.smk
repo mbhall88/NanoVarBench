@@ -33,6 +33,36 @@ for caller, caller_config in CALLERS.items():
             script:
                 SCRIPTS / f"callers/{caller}.{caller_config.get('extension', 'sh')}"
 
+        rule:
+            name:
+                f"{caller}_call_mutref"
+            input:
+                alignment=rules.align_to_mutref.output.alignment,
+                reference=rules.align_to_mutref.input.reference,
+                faidx=rules.faidx_mutref.output.faidx,
+            output:
+                vcf=RESULTS
+                / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+            log:
+                LOGS
+                / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+            benchmark:
+                repeat(
+                    BENCH
+                    / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+                    REPEAT,
+                )
+            threads: caller_config.get("threads", 4)
+            resources:
+                mem_mb=caller_config.get("memory", 16 * GB),
+                runtime=caller_config.get("runtime", "1h"),
+            container:
+                caller_config["container"]
+            shadow:
+                "shallow"
+            script:
+                SCRIPTS / f"callers/{caller}.{caller_config.get('extension', 'sh')}"
+
     elif "conda" in caller_config:
 
         rule:
@@ -52,6 +82,36 @@ for caller, caller_config in CALLERS.items():
                 repeat(
                     BENCH
                     / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+                    REPEAT,
+                )
+            threads: caller_config.get("threads", 4)
+            resources:
+                mem_mb=caller_config.get("memory", 16 * GB),
+                runtime=caller_config.get("runtime", "1h"),
+            conda:
+                caller_config["conda"]
+            shadow:
+                "shallow"
+            script:
+                SCRIPTS / f"callers/{caller}.{caller_config.get('extension', 'sh')}"
+
+        rule:
+            name:
+                f"{caller}_call_mutref"
+            input:
+                alignment=rules.align_to_mutref.output.alignment,
+                reference=rules.align_to_mutref.input.reference,
+                faidx=rules.faidx_mutref.output.faidx,
+            output:
+                vcf=RESULTS
+                / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+            log:
+                LOGS
+                / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+            benchmark:
+                repeat(
+                    BENCH
+                    / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
                     REPEAT,
                 )
             threads: caller_config.get("threads", 4)

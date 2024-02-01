@@ -62,3 +62,9 @@ callers:
     runtime: "2h"
     conda: "envs/freebayes.yaml"
     extension: "sh"
+  deepvariant:
+    threads: 4
+    memory: 8000
+    runtime: "2h"
+    container: "docker://google/deepvariant:1.6.0"
+    extension: "sh"

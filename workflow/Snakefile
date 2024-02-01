@@ -58,6 +58,10 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
                 RESULTS
                 / f"call/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.vcf.gz"
             )
+            target_files.add(
+                RESULTS
+                / f"call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.vcf.gz"
+            )
 
 for sample in SAMPLES:
     target_files.add(FIGURES / f"plot_synteny/{sample}/minimap2.plotsr.png")
