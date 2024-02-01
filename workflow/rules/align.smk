@@ -21,7 +21,7 @@ rule align_to_self:
     shell:
         """
         (minimap2 {params.opts} -t {threads} -x {params.preset} {input.reference} {input.reads} | \
-          samtools sort -@ {threads} -o {output.alignment}) 2> {log}
+          samtools sort --write-index -@ {threads} -o {output.alignment}) 2> {log}
         """
 
 

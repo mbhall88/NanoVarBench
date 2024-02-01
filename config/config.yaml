@@ -44,3 +44,9 @@ callers:
     runtime: "2h"
     container: "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
     extension: "sh"
+  clair3:
+    threads: 4
+    memory: 8000
+    runtime: "1h"
+    container: "docker://quay.io/mbhall88/clair3:1.0.5"
+    extension: "sh"
