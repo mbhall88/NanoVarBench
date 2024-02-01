@@ -17,4 +17,4 @@ longshot -AFn \
     -I 50 \
     -s "$sample"
 
-bcftools view -o "$finalvcf" "$outvcf"
+bcftools view -e 'GT="het"' -o "$finalvcf" "$outvcf"

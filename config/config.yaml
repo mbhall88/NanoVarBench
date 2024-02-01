@@ -56,3 +56,9 @@ callers:
     runtime: "1h"
     conda: "envs/longshot.yaml"
     extension: "sh"
+  freebayes:
+    threads: 1
+    memory: 8000
+    runtime: "2h"
+    conda: "envs/freebayes.yaml"
+    extension: "sh"
