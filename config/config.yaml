@@ -10,10 +10,10 @@ model:
 
 # Parameters for quality control
 QC:
-  min_length: 1000  # remove reads shorter than this
-  min_qscore: 10    # per read, minimum mean quality score
-  depths:           # randomly subsample reads to these depths
-    - 100        
+  min_length: 1000 # remove reads shorter than this
+  min_qscore: 10 # per read, minimum mean quality score
+  depths: # randomly subsample reads to these depths
+    - 100
 
 # Nanopore sequencing mode - i.e., simplex, duplex
 mode:
@@ -33,7 +33,7 @@ truth:
   # The maximum number of assemblies to download for distance calculation
   max_assemblies: 10000
 
-# number of times to repeat running the variant calling rules. This is intended for 
+# number of times to repeat running the variant calling rules. This is intended for
 # benchmarking purposes only, and should be set to 1 for normal use.
 repeat: 1
 
@@ -49,4 +49,10 @@ callers:
     memory: 8000
     runtime: "1h"
     container: "docker://quay.io/mbhall88/clair3:1.0.5"
+    extension: "sh"
+  longshot:
+    threads: 1
+    memory: 2000
+    runtime: "1h"
+    conda: "envs/longshot.yaml"
     extension: "sh"
