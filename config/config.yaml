@@ -54,13 +54,13 @@ callers:
     threads: 1
     memory: 2000
     runtime: "1h"
-    conda: "envs/longshot.yaml"
+    conda: "../envs/longshot.yaml"
     extension: "sh"
   freebayes:
     threads: 1
     memory: 8000
     runtime: "2h"
-    conda: "envs/freebayes.yaml"
+    conda: "../envs/freebayes.yaml"
     extension: "sh"
   deepvariant:
     threads: 4
