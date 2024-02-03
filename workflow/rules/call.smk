@@ -32,7 +32,7 @@ rule call_self_bcftools:
         "../scripts/callers/bcftools.sh"
 
 
-rule call_mutref_bcftools:
+use rule call_self_bcftools as call_mutref_bcftools with:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -49,16 +49,6 @@ rule call_mutref_bcftools:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
-    threads: 4
-    resources:
-        mem_mb=8 * GB,
-        runtime="6h",
-    container:
-        "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/bcftools.sh"
 
 
 caller = "clair3"
@@ -93,7 +83,7 @@ rule call_self_clair3:
         "../scripts/callers/clair3.sh"
 
 
-rule call_mutref_clair3:
+use rule call_self_clair3 as call_mutref_clair3 with:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -110,16 +100,6 @@ rule call_mutref_clair3:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
-    threads: 4
-    resources:
-        mem_mb=8 * GB,
-        runtime="6h",
-    container:
-        "docker://quay.io/mbhall88/clair3:1.0.5"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/clair3.sh"
 
 
 caller = "deepvariant"
@@ -145,7 +125,7 @@ rule call_self_deepvariant:
     threads: 4
     resources:
         mem_mb=8 * GB,
-        runtime="6h",
+        runtime="12h",
     container:
         "docker://google/deepvariant:1.6.0"
     shadow:
@@ -154,7 +134,7 @@ rule call_self_deepvariant:
         "../scripts/callers/deepvariant.sh"
 
 
-rule call_mutref_deepvariant:
+use rule call_self_deepvariant as call_mutref_deepvariant with:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -171,16 +151,6 @@ rule call_mutref_deepvariant:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
-    threads: 4
-    resources:
-        mem_mb=8 * GB,
-        runtime="6h",
-    container:
-        "docker://google/deepvariant:1.6.0"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/deepvariant.sh"
 
 
 caller = "freebayes"
@@ -206,7 +176,7 @@ rule call_self_freebayes:
     threads: 4
     resources:
         mem_mb=8 * GB,
-        runtime="6h",
+        runtime="12h",
     conda:
         ENVS / f"{caller}.yaml"
     shadow:
@@ -215,7 +185,7 @@ rule call_self_freebayes:
         "../scripts/callers/freebayes.sh"
 
 
-rule call_mutref_freebayes:
+use rule call_self_freebayes as call_mutref_freebayes with:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -232,16 +202,6 @@ rule call_mutref_freebayes:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
-    threads: 4
-    resources:
-        mem_mb=8 * GB,
-        runtime="6h",
-    conda:
-        ENVS / f"{caller}.yaml"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/freebayes.sh"
 
 
 caller = "longshot"
@@ -276,7 +236,7 @@ rule call_self_longshot:
         "../scripts/callers/longshot.sh"
 
 
-rule call_mutref_longshot:
+use rule call_self_longshot as call_mutref_longshot with:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -293,13 +253,3 @@ rule call_mutref_longshot:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
-    threads: 4
-    resources:
-        mem_mb=8 * GB,
-        runtime="6h",
-    conda:
-        ENVS / f"{caller}.yaml"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/longshot.sh"
