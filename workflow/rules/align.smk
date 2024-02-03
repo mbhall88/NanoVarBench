@@ -5,6 +5,8 @@ rule align_to_self:
     output:
         alignment=RESULTS
         / "align/self/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam",
+        index=RESULTS
+        / "align/self/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam.bai",
     log:
         LOGS / "align_to_self/{depth}x/{mode}/{version}/{model}/{sample}.log",
     threads: 4
@@ -21,7 +23,8 @@ rule align_to_self:
     shell:
         """
         (minimap2 {params.opts} -t {threads} -x {params.preset} {input.reference} {input.reads} | \
-          samtools sort --write-index -@ {threads} -o {output.alignment}) 2> {log}
+          samtools sort -@ {threads} -o {output.alignment}) 2> {log}
+        samtools index {output.alignment} 2>> {log}
         """
 
 
@@ -32,6 +35,8 @@ use rule align_to_self as align_to_mutref with:
     output:
         alignment=RESULTS
         / "align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam",
+        index=RESULTS
+        / "align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam.bai",
     log:
         LOGS / "align_to_mutref/{depth}x/{mode}/{version}/{model}/{sample}.log",
     benchmark:
