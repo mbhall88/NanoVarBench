@@ -38,33 +38,8 @@ truth:
 repeat: 1
 
 callers:
-  bcftools:
-    threads: 4
-    memory: 8000
-    runtime: "2h"
-    container: "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
-    extension: "sh"
-  clair3:
-    threads: 4
-    memory: 8000
-    runtime: "1h"
-    container: "docker://quay.io/mbhall88/clair3:1.0.5"
-    extension: "sh"
-  longshot:
-    threads: 1
-    memory: 2000
-    runtime: "1h"
-    conda: "../envs/longshot.yaml"
-    extension: "sh"
-  freebayes:
-    threads: 1
-    memory: 8000
-    runtime: "2h"
-    conda: "../envs/freebayes.yaml"
-    extension: "sh"
-  deepvariant:
-    threads: 4
-    memory: 8000
-    runtime: "2h"
-    container: "docker://google/deepvariant:1.6.0"
-    extension: "sh"
+  - bcftools
+  - clair3
+  - deepvariant
+  - freebayes
+  - longshot

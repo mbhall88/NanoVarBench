@@ -34,31 +34,15 @@ The pipeline configuration file.
 
 ### Variant caller configuration
 
-In the interest of making it easier to add/remove variant callers to the benchmark, there are some specific configuration requirements for variant caller addition. There are two sections (three if using conda) where the pipeline requires information.
+In the interest of making it easier to add/remove variant callers to the benchmark, there are some specific configuration requirements for variant caller addition.
 
-1. The `callers` section of [the pipeline `config.yaml` file](#configyaml). The key must be your name for the caller (this does not have to be the name of the command used to run the tool). Followed by nested key-value pairs for
-   - `container`: (required if `conda` not given) the location of the container to run the job in.
-   - `conda`: (required if `container` not given) the conda environment to run the job in. If providing a path to an environment file, the path is interpreted as relative to the Snakefile that contains the caller rule. An absolute path can also be given.
-   - `threads`: (optional) number of threads to use for the caller. Defaults to 4.
-   - `memory`: (optional) the memory (MB) to request for the job. Defaults to 16000.
-   - `runtime`: (optional) the [runtime] for the job.  It can be given as string defining a time span or as integer defining minutes. In the former case, the time span can be defined as a string with a number followed by a unit (ms, s, m, h, d, w, y for seconds, minutes, hours, days, and years, respectively). Defaults to `1h` (one hour).
-   - `extension`: The extension of the script (see below) used for running the caller. Defaults to `sh`.
-2. A script that runs the variant caller. This is executed as a [Snakemake script][smk-script]. By default, the configuration assumes this is a Bash script, however, any of the accepted scripting languages can be used (ensure you provide the `extension` key in the configuration). See [the caller rules](../workflow/rules/call.smk) for the files and parameters available in the `snakemake` object in the scrpt. The script **must be named/located at `workflow/scripts/callers/<caller>.<extension>`**, where `<caller>` is the name of the caller provided in the config file, and `<extension>` is the `extensions` key (`sh` by default). In addition, the script **must produced a compressed VCF file** (i.e., `.vcf.gz`).
-3. (optional) a conda environment file. The location to the file must be given in the `conda` key of the caller configuration on the `config.yaml` file (see above). Try and be specific with the versions to ensure reproducibility.
+Firstly, the `caller` section of the config is a list of variant callers you will be using. It is just a descriptive name for the caller, and doesn't have the be the actual command used to invoke the tool on the command line.
+
+A Bash script that runs the variant caller must be provided. This is executed as a [Snakemake Bash script][smk-script]. See [the caller rules](../workflow/rules/call.smk) for the files and parameters available in the `snakemake` object in the scrpt. The script **must be named/located at `workflow/scripts/callers/<caller>.sh`**, where `<caller>` is the name of the caller provided in the config file. In addition, the script **must produce a compressed VCF file** (i.e., `.vcf.gz`). You must also provide either a container or conda enviornment file that the rule should be executed in. If using a conda environment, it must be located at `workflow/envs/<caller>.yaml`.
+
+Once you have satisfied all of these requirements, copy and paste the `call_self` and `call_mutref` rules in `workflow/rules/call.smk` and rename them for your caller. The only thing you should need to change is the use of a `conda` or `container` directive.
 
 #### Example
-
-**Configuration**
-
-```yaml
-callers:
-  bcftools:
-    threads: 4
-    memory: 8000
-    runtime: "2h"
-    container: "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
-    extension: "sh"
-```
 
 **Script**
 

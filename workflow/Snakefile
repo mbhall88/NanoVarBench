@@ -45,14 +45,6 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
         RESULTS / f"QC/stats/downsample/{depth}x/{mode}/{version}/{model}.csv"
     )
     for sample in SAMPLES:
-        target_files.add(
-            RESULTS
-            / f"align/self/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam"
-        )
-        target_files.add(
-            RESULTS
-            / f"align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam"
-        )
         for caller in CALLERS:
             target_files.add(
                 RESULTS
