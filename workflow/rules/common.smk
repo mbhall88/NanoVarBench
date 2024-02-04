@@ -19,3 +19,17 @@ def infer_species(sample):
 
 def infer_taxid(wildcards):
     return pep.get_sample(wildcards.sample)["taxid"]
+
+
+def infer_vcf_reference(wildcards):
+    if wildcards.ref == "self":
+        return str(infer_reference_genome(wildcards))
+    elif wildcards.ref == "mutref":
+        return str(RESULTS / f"truth/{wildcards.sample}/mutreference.fna")
+
+
+def infer_vcf_reference_faidx(wildcards):
+    if wildcards.ref == "self":
+        return str(infer_reference_genome(wildcards)) + ".fai"
+    elif wildcards.ref == "mutref":
+        return str(RESULTS / f"truth/{wildcards.sample}/mutreference.fna.fai")
