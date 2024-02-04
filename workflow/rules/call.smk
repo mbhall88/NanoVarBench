@@ -255,6 +255,57 @@ use rule call_self_longshot as call_mutref_longshot with:
         )
 
 
+caller = "nanocaller"
+
+
+rule call_self_nanocaller:
+    input:
+        alignment=rules.align_to_self.output.alignment,
+        reference=rules.align_to_self.input.reference,
+        faidx=rules.faidx_reference.output.faidx,
+    output:
+        vcf=RESULTS
+        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+    log:
+        LOGS
+        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+    benchmark:
+        repeat(
+            BENCH
+            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+            REPEAT,
+        )
+    threads: 4
+    resources:
+        mem_mb=8 * GB,
+        runtime="6h",
+    container:
+        "docker://genomicslab/nanocaller:3.4.1"
+    shadow:
+        "shallow"
+    script:
+        "../scripts/callers/nanocaller.sh"
+
+
+use rule call_self_nanocaller as call_mutref_nanocaller with:
+    input:
+        alignment=rules.align_to_mutref.output.alignment,
+        reference=rules.align_to_mutref.input.reference,
+        faidx=rules.faidx_mutref.output.faidx,
+    output:
+        vcf=RESULTS
+        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+    log:
+        LOGS
+        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+    benchmark:
+        repeat(
+            BENCH
+            / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+            REPEAT,
+        )
+
+
 rule filter_variants:
     input:
         vcf=RESULTS
