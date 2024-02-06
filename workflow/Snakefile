@@ -46,17 +46,17 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
     )
     for sample in SAMPLES:
         for caller in CALLERS:
-            for ref in ["self", "mutref"]:
-                target_files.add(
-                    RESULTS
-                    / f"call/{ref}/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz"
-                )
+            target_files.add(
+                RESULTS
+                / f"call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz"
+            )
 
 
 for sample in SAMPLES:
     target_files.add(FIGURES / f"plot_synteny/{sample}/minimap2.plotsr.png")
 
 target_files.add(TABLES / "mutref_summary.csv")
+target_files.add(RESULTS / "assess/self/self_calls.csv")
 
 
 rule all:
@@ -69,3 +69,4 @@ include: RULES / "qc.smk"
 include: RULES / "truth.smk"
 include: RULES / "align.smk"
 include: RULES / "call.smk"
+include: RULES / "assess.smk"

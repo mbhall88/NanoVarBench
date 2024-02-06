@@ -18,4 +18,4 @@ run_deepvariant --model_type ONT_R104 \
     --novcf_stats_report \
     --noruntime_report
 
-bcftools view -i 'GT="AA"' -o "$outvcf" "$tmpvcf"
+bcftools view -o "$outvcf" "$tmpvcf"

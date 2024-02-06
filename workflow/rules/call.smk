@@ -312,6 +312,7 @@ rule filter_variants:
         / "call/{ref}/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.vcf.gz",
         reference=infer_vcf_reference,
         faidx=infer_vcf_reference_faidx,
+        filter_script=SCRIPTS / "filter_hets.py",
     output:
         vcf=RESULTS
         / "call/{ref}/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz",
@@ -321,17 +322,29 @@ rule filter_variants:
     resources:
         mem_mb=int(0.5 * GB),
         runtime="3m",
-    container:
-        "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
+    conda:
+        ENVS / "filter_variants.yaml"
     params:
         max_indel=config["truth"].get("max_indel", 50),
     shell:
         """
-        (bcftools reheader -f {input.faidx} {input.vcf} |        # add contigs to header
-            bcftools view -i 'GT="alt"' |                        # remove non-alt alleles
-            bcftools norm -f {input.reference} -a -c e -m - |    # normalise and left-align indels
-            bcftools norm -aD |                                  # remove duplicates after normalisation
-            bcftools filter -e 'abs(ILEN)>{params.max_indel}' |  # remove long indels
-            sed 's|1/1|1|g' |                                    # make genotypes haploid e.g., 1/1 -> 1
-            bcftools view -o {output.vcf} --write-index) 2> {log}
+        exec 2> {log}
+        contigs=$(mktemp -u).contigs.txt
+        header=$(mktemp -u).header.txt
+        trap 'rm -f $contigs $header' EXIT 
+
+        # bcftools reheader only adds contigs that appear in the VCF, we want all contigs
+        awk '{{print "##contig=<ID="$1",length="$2">"}}' {input.faidx} > "$contigs"  # make contig lines with all contigs
+        (bcftools view -h {input.vcf} |                                            # output VCF header
+            grep -v "^##contig=" |                                                 # remove contig lines
+            sed -e "3r $contigs") > "$header"                                      # add contig lines after 3rd line
+
+        (bcftools reheader -h "$header" {input.vcf} |                       # replace VCF header with new header containing all contigs
+            python {input.filter_script} |                                  # make heterozygous calls homozygous for allele with most depth
+            bcftools view -i 'GT="alt"' |                                   # remove non-alt alleles
+            bcftools norm -f {input.reference} -a -c e -m - |               # normalise and left-align indels
+            bcftools norm -aD |                                             # remove duplicates after normalisation
+            bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles
+            sed 's|1/1|1|g' |                                               # make genotypes haploid e.g., 1/1 -> 1
+            bcftools view -i 'GT="A"' -o {output.vcf} --write-index)        # remove non-alt alleles and write index
         """
