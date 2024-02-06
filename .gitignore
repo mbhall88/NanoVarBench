@@ -2,3 +2,4 @@ results/
 .snakemake
 logs/
 tmp/
+.keras/
