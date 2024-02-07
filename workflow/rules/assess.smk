@@ -6,7 +6,7 @@ rule assess_self_calls:
         csv=RESULTS
         / "assess/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.csv",
     log:
-        log=RESULTS
+        log=LOGS
         / "assess_self_calls/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
         runtime="2m",
@@ -32,7 +32,7 @@ rule combine_self_calls:
     output:
         csv=RESULTS / "assess/self/self_calls.csv",
     log:
-        log=RESULTS / "combine_self_calls.log",
+        log=LOGS / "combine_self_calls.log",
     resources:
         runtime="2m",
         mem_mb=500,
