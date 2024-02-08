@@ -19,4 +19,4 @@ DEFAULT_TMP="tmpdir='/tmp'"
 CMD="snakemake --profile $PROFILE --default-resources \"$DEFAULT_TMP\" --rerun-incomplete --local-cores $THREADS $* --singularity-args '$SINGULARITY_ARGS'"
 
 ssubmit -t "$TIME" -m "$MEMORY" -o "$LOG_DIR"/"$JOB_NAME".o \
-    -e "$LOG_DIR"/"$JOB_NAME".e "$JOB_NAME" "$CMD" -- -c "$THREADS"
+    -e "$LOG_DIR"/"$JOB_NAME".e "$JOB_NAME" "$CMD" -- -c "$THREADS" -p sapphire

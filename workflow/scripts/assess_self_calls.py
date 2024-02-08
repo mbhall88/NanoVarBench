@@ -24,7 +24,11 @@ def main():
 
     n_fps = sum(variants.values())
     n_tns = seqlens - n_fps
-    fpr = n_fps / (n_fps + n_tns)
+    fpr = n_fps / seqlens
+    snp_tns = seqlens - variants["SNP"]
+    indel_tns = seqlens - (variants["INS"] + variants["DEL"])
+    snp_fpr = variants["SNP"] / seqlens
+    indel_fpr = (variants["INS"] + variants["DEL"]) / seqlens
     with open(snakemake.output.csv, "w") as output:
         print(
             ",".join(
@@ -34,7 +38,11 @@ def main():
                     "DEL",
                     "INDEL",
                     "FP",
+                    "SNP_TN",
+                    "INDEL_TN",
                     "TN",
+                    "SNP_FPR",
+                    "INDEL_FPR",
                     "FPR",
                     "caller",
                     "sample",
@@ -61,7 +69,11 @@ def main():
                     str(variants["DEL"]),
                     str(variants["INS"] + variants["DEL"]),
                     str(n_fps),
+                    str(snp_tns),
+                    str(indel_tns),
                     str(n_tns),
+                    str(snp_fpr),
+                    str(indel_fpr),
                     str(fpr),
                     caller,
                     sample,

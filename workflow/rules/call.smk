@@ -176,7 +176,7 @@ rule call_self_freebayes:
     threads: 4
     resources:
         mem_mb=8 * GB,
-        runtime="12h",
+        runtime="1d",
     conda:
         ENVS / f"{caller}.yaml"
     shadow:
