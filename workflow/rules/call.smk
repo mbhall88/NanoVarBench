@@ -345,6 +345,6 @@ rule filter_variants:
             bcftools norm -f {input.reference} -a -c e -m - |               # normalise and left-align indels
             bcftools norm -aD |                                             # remove duplicates after normalisation
             bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles
-            sed 's|1/1|1|g' |                                               # make genotypes haploid e.g., 1/1 -> 1
+            bcftools +setGT - -- -t a -n c:M |                              # make genotypes haploid e.g., 1/1 -> 1
             bcftools view -i 'GT="A"' -o {output.vcf} --write-index)        # remove non-alt alleles and write index
         """

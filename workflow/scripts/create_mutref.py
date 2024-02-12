@@ -782,6 +782,7 @@ def merge_and_filter_variants(
         "bcftools norm -aD |"
         "bcftools +remove-overlaps - |"
         "bcftools annotate --remove QUAL,INFO/VTYPE,INFO/QNAME,INFO/QSTRAND,INFO/QSTART - |"
+        "bcftools +setGT - -- -t a -n c:1"  # make genotypes haploid ALT
         f"bcftools filter -e 'abs(ILEN)>{max_indel}' -o {tmpvcf}"
     )
     logger.debug(f"Running bcftools pipeline: {cmd}")
@@ -960,6 +961,69 @@ def create_mutant_reference(reference_genome: str, variants: str, output: str) -
         logger.trace(f"bcftools consensus output:\n{proc.stderr}")
 
 
+def inverse_vcf(invcf: str, outvcf: str) -> None:
+    """This function takes a VCF that was used to generate a consensus sequence with bcftools
+    consensus and provides the inverse - i.e., the VCF that would turn the consensus
+    sequence back into the original reference sequence.
+    """
+    with open(invcf, "r") as f_in, open(outvcf, "w") as f_out:
+        offset_counter = defaultdict(int)
+        for line in f_in:
+            if line.startswith("#"):
+                print(line.strip(), file=f_out)
+                continue
+
+            fields = line.strip().split("\t")
+            ref = fields[3]
+            alt = fields[4]
+            pos = int(fields[1])
+            chrom = fields[0]
+            offset = offset_counter[chrom]
+            new_alt = ref
+            new_ref = alt
+            new_pos = pos + offset
+            record_offset = len(alt) - len(ref)
+            offset_counter[chrom] += record_offset
+            fields[1] = str(new_pos)
+            fields[3] = new_ref
+            fields[4] = new_alt
+            print("\t".join(fields), file=f_out)
+
+
+def fasta_to_dict(fasta: str) -> Dict[str, str]:
+    """Read a fasta file and return a dictionary of sequences"""
+    seqs = {}
+    with open(fasta, "r") as f:
+        for line in f:
+            if line.startswith(">"):
+                name = line.strip().split()[0][1:]
+                seqs[name] = ""
+            else:
+                seqs[name] += line.strip()
+
+    return seqs
+
+
+def fastas_match(fasta1: str, fasta2: str) -> bool:
+    """Check if two fasta files are identical"""
+    seqs1 = fasta_to_dict(fasta1)
+    seqs2 = fasta_to_dict(fasta2)
+
+    if len(seqs1) != len(seqs2):
+        logger.error(f"Number of sequences in {fasta1} and {fasta2} do not match")
+        return False
+
+    for name in seqs1:
+        if name not in seqs2:
+            logger.error(f"Sequence {name} not found in {fasta2}")
+            return False
+        if seqs1[name] != seqs2[name]:
+            logger.error(f"Sequences for {name} do not match")
+            return False
+
+    return True
+
+
 def main():
     args = parse_args()
     setup_logging(args.verbose, args.quiet)
@@ -1123,20 +1187,18 @@ def main():
 
     logger.info("Merging, normalising, and filtering variants...")
 
-    final_vcf = outdir / "truth.vcf.gz"
+    apply_vcf = outdir / "apply.vcf.gz"
     merge_and_filter_variants(
         tmpdir,
         [str(mm2_vcf), str(dnadiff_vcf)],
         str(reference_genome),
-        str(final_vcf),
+        str(apply_vcf),
         args.max_indel,
         args.remove_overlaps,
     )
 
-    logger.success(f"Final truth variants saved to {final_vcf}")
-
     vcfstats_file = outdir / "vcfstats.txt"
-    vcfstats(str(final_vcf), str(vcfstats_file))
+    vcfstats(str(apply_vcf), str(vcfstats_file))
     logger.success(f"VCF stats saved to {vcfstats_file}")
 
     logger.info("Creating mutant reference genome...")
@@ -1144,11 +1206,49 @@ def main():
     mutref = outdir / "mutreference.fna"
     create_mutant_reference(
         str(reference_genome),
-        str(final_vcf),
+        str(apply_vcf),
         str(mutref),
     )
 
     logger.success(f"Mutant reference genome saved to {mutref}")
+    logger.success(
+        f"VCF used to create the mutant reference genome saved to {apply_vcf}"
+    )
+
+    logger.info("Creating truth VCF...")
+    inverse_outvcf = tmpdir / "inverse.vcf"
+    inverse_vcf(str(apply_vcf), str(inverse_outvcf))
+
+    # compress and index the inverse VCF
+    compressed_inverse_vcf = tmpdir / "inverse.vcf.gz"
+    cmd = f"bcftools view --write-index -o {compressed_inverse_vcf} {inverse_outvcf}"
+    logger.debug(f"Running bcftools view: {cmd}")
+    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+
+    if proc.returncode != 0:
+        logger.error(f"bcftools view failed with return code {proc.returncode}")
+        logger.error(proc.stderr)
+        sys.exit(1)
+    else:
+        logger.trace(f"bcftools view output:\n{proc.stderr}")
+
+    # check the inverse VCF, applied to the mutant reference, should give the original reference
+    inverse_ref = tmpdir / "inverse_reference.fna"
+    create_mutant_reference(str(mutref), str(compressed_inverse_vcf), str(inverse_ref))
+    seqs_match = fastas_match(str(reference_genome), str(inverse_ref))
+
+    if not seqs_match:
+        logger.error("Inverse VCF did not produce the original reference genome")
+        sys.exit(1)
+
+    logger.debug("Inverse VCF produced the original reference genome")
+
+    final_vcf = outdir / "truth.vcf.gz"
+    shutil.copy(compressed_inverse_vcf, final_vcf)
+    # and copy the index
+    shutil.copy(str(compressed_inverse_vcf) + ".csi", str(final_vcf) + ".csi")
+
+    logger.success(f"Final truth variants saved to {final_vcf}")
     logger.success("Done!")
 
 
