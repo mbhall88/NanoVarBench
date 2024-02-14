@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - seaborn=0.13.2
+  - matplotlib-base=3.8.2
+  - pandas=2.1.4
