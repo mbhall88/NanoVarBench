@@ -31,6 +31,7 @@ The pipeline configuration file.
   - `max_assemblies` The maximum number of assemblies to download for distance calculation
 - `repeat` the number of times to repeat each variant calling rule. This is intended for benchmarking purposes and can be set to 1 for normal use.
 - `callers` see the [callers section](#variant-caller-configuration).
+- `no_indels` a list of `callers` that do not call indels
 
 ### Variant caller configuration
 

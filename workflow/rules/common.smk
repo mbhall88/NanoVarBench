@@ -23,13 +23,10 @@ def infer_taxid(wildcards):
 
 def infer_vcf_reference(wildcards):
     if wildcards.ref == "self":
-        return str(infer_reference_genome(wildcards))
+        return str(RESULTS / f"reference/{wildcards.sample}.fa")
     elif wildcards.ref == "mutref":
         return str(RESULTS / f"truth/{wildcards.sample}/mutreference.fna")
 
 
 def infer_vcf_reference_faidx(wildcards):
-    if wildcards.ref == "self":
-        return str(infer_reference_genome(wildcards)) + ".fai"
-    elif wildcards.ref == "mutref":
-        return str(RESULTS / f"truth/{wildcards.sample}/mutreference.fna.fai")
+    return infer_vcf_reference(wildcards) + ".fai"

@@ -22,7 +22,7 @@ rule call_self_bcftools:
         )
     threads: 4
     resources:
-        mem_mb=8 * GB,
+        mem_mb=16 * GB,
         runtime="6h",
     container:
         "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
@@ -173,9 +173,9 @@ rule call_self_freebayes:
             / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
-    threads: 4
+    threads: 8
     resources:
-        mem_mb=8 * GB,
+        mem_mb=16 * GB,
         runtime="1d",
     conda:
         ENVS / f"{caller}.yaml"
@@ -346,5 +346,6 @@ rule filter_variants:
             bcftools norm -aD |                                             # remove duplicates after normalisation
             bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles
             bcftools +setGT - -- -t a -n c:M |                              # make genotypes haploid e.g., 1/1 -> 1
+            bcftools sort |                                                 # sort VCF
             bcftools view -i 'GT="A"' -o {output.vcf} --write-index)        # remove non-alt alleles and write index
         """

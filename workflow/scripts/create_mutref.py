@@ -782,7 +782,7 @@ def merge_and_filter_variants(
         "bcftools norm -aD |"
         "bcftools +remove-overlaps - |"
         "bcftools annotate --remove QUAL,INFO/VTYPE,INFO/QNAME,INFO/QSTRAND,INFO/QSTART - |"
-        "bcftools +setGT - -- -t a -n c:1"  # make genotypes haploid ALT
+        "bcftools +setGT - -- -t a -n c:1 |"  # make genotypes haploid ALT
         f"bcftools filter -e 'abs(ILEN)>{max_indel}' -o {tmpvcf}"
     )
     logger.debug(f"Running bcftools pipeline: {cmd}")
@@ -966,7 +966,7 @@ def inverse_vcf(invcf: str, outvcf: str) -> None:
     consensus and provides the inverse - i.e., the VCF that would turn the consensus
     sequence back into the original reference sequence.
     """
-    with open(invcf, "r") as f_in, open(outvcf, "w") as f_out:
+    with open(outvcf, "w") as f_out, gzip.open(invcf, "rt") as f_in:
         offset_counter = defaultdict(int)
         for line in f_in:
             if line.startswith("#"):

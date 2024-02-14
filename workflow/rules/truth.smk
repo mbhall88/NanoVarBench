@@ -3,7 +3,7 @@ truth_config = config["truth"]
 
 rule create_mutref:
     input:
-        genome=infer_reference_genome,
+        genome=rules.faidx_reference.output.fasta,
         script=SCRIPTS / "create_mutref.py",
     output:
         mutref=RESULTS / "truth/{sample}/mutreference.fna",
@@ -49,18 +49,26 @@ rule create_mutref:
         """
 
 
-use rule faidx_reference as faidx_mutref with:
+rule faidx_mutref:
     input:
         reference=rules.create_mutref.output.mutref,
     output:
         faidx=RESULTS / "truth/{sample}/mutreference.fna.fai",
     log:
         LOGS / "faidx_mutref/{sample}.log",
+    resources:
+        mem_mb=500,
+        runtime="5m",
+    container:
+        "docker://quay.io/biocontainers/samtools:1.19--h50ea8bc_0"
+    shell:
+        "samtools faidx {input.reference} 2> {log}"
 
 
 rule mutref_summary:
     input:
         logs=expand(LOGS / "create_mutref/{sample}.log", sample=SAMPLES),
+        mutrefs=expand(RESULTS / "truth/{sample}/mutreference.fna", sample=SAMPLES),
     output:
         csv=TABLES / "mutref_summary.csv",
         latex=TABLES / "mutref_summary.tex",

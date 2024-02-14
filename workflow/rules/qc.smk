@@ -1,7 +1,27 @@
+rule faidx_reference:
+    input:
+        reference=infer_reference_genome,
+    output:
+        fasta=RESULTS / "reference/{sample}.fa",
+        faidx=RESULTS / "reference/{sample}.fa.fai",
+    log:
+        LOGS / "faidx_reference/{sample}.log",
+    resources:
+        mem_mb=500,
+        runtime="5m",
+    container:
+        "docker://quay.io/biocontainers/samtools:1.19--h50ea8bc_0"
+    shell:
+        """
+        cp {input.reference} {output.fasta} 2> {log}
+        samtools faidx {output.fasta} 2>> {log}
+        """
+
+
 rule stats_prefilter:
     input:
         reads=infer_original_reads_path,
-        reference=infer_reference_genome,
+        reference=rules.faidx_reference.output.fasta,
     output:
         stats=RESULTS / "QC/stats/prefilter/{mode}/{version}/{model}/{sample}.txt",
     log:
@@ -69,7 +89,7 @@ rule filter_reads:
 use rule stats_prefilter as stats_postfilter with:
     input:
         reads=rules.filter_reads.output.reads,
-        reference=infer_reference_genome,
+        reference=rules.faidx_reference.output.fasta,
     output:
         stats=RESULTS / "QC/stats/postfilter/{mode}/{version}/{model}/{sample}.txt",
     log:
@@ -89,22 +109,6 @@ use rule combine_stats_prefilter as combine_stats_postfilter with:
         stats=RESULTS / "QC/stats/postfilter/{mode}/{version}/{model}.csv",
     log:
         LOGS / "combine_stats_postfilter/{mode}/{version}/{model}.log",
-
-
-rule faidx_reference:
-    input:
-        reference=infer_reference_genome,
-    output:
-        faidx=RESULTS / "reference/faidx/{sample}.fa.fai",
-    log:
-        LOGS / "faidx_reference/{sample}.log",
-    resources:
-        mem_mb=500,
-        runtime="5m",
-    container:
-        "docker://quay.io/biocontainers/samtools:1.19--h50ea8bc_0"
-    shell:
-        "samtools faidx --fai-idx {output.faidx} {input.reference} 2> {log}"
 
 
 rule downsample_reads:
@@ -132,7 +136,7 @@ rule downsample_reads:
 use rule stats_prefilter as stats_downsample with:
     input:
         reads=rules.downsample_reads.output.reads,
-        reference=infer_reference_genome,
+        reference=rules.faidx_reference.output.fasta,
     output:
         stats=RESULTS
         / "QC/stats/downsample/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.txt",

@@ -27,6 +27,7 @@ pepschema: str(SCHEMAS / "pep.yaml")
 
 SAMPLES = pep.sample_table["sample_name"]
 DEPTHS = sorted(config["QC"]["depths"])
+MAX_DEPTH = max(DEPTHS)
 VERSIONS = sorted(list(config["model"].keys()))
 MODES = sorted(config["mode"])
 MODELS = []
@@ -48,7 +49,7 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
         for caller in CALLERS:
             target_files.add(
                 RESULTS
-                / f"call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz"
+                / f"assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv"
             )
 
 
@@ -56,7 +57,7 @@ for sample in SAMPLES:
     target_files.add(FIGURES / f"plot_synteny/{sample}/minimap2.plotsr.png")
 
 target_files.add(TABLES / "mutref_summary.csv")
-target_files.add(RESULTS / "assess/self/self_calls.csv")
+target_files.add(FIGURES / "assess/self/self_fpr.snps.png")
 
 
 rule all:

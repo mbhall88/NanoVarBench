@@ -1,6 +1,7 @@
 """This script takes a list of log files from the mutref pipeline and summarizes the 
 results into CSV and Latex tables
 """
+
 import sys
 
 sys.stderr = open(snakemake.log[0], "w")
@@ -11,7 +12,30 @@ from pathlib import Path
 import pandas as pd
 
 
+def calculate_gc_content(path: Path) -> float:
+    """Calculate GC content for a fasta file"""
+    with open(path) as f:
+        lines = f.readlines()
+
+    # Remove header and newlines
+    lines = [l.strip() for l in lines if not l.startswith(">")]
+
+    # Concatenate lines
+    sequence = "".join(lines)
+
+    # Count GC
+    gc = sequence.count("G") + sequence.count("C")
+    total = len(sequence)
+    gc_content = gc / total
+    return gc_content
+
+
 def main():
+    gc_content = dict()
+    for p in map(Path, snakemake.input.mutrefs):
+        sample = p.parts[-2]
+        gc_content[sample] = calculate_gc_content(p)
+
     # Parse log files
     data = []
     for log in snakemake.input.logs:
@@ -98,6 +122,7 @@ def main():
         deletions = deletions_1bp + deletions_2bp + deletions_long
         insertions = insertions_1bp + insertions_2bp + insertions_long
         n_variants = snps + insertions + deletions
+        gc = gc_content[sample] * 100  # convert to percentage
 
         data.append(
             (
@@ -106,6 +131,7 @@ def main():
                 n_genomes,
                 acc,
                 dist,
+                gc,
                 shared_hashes,
                 total_hashes,
                 snps,
@@ -130,6 +156,7 @@ def main():
             "n_genomes",
             "acc",
             "dist",
+            "GC",
             "shared_hashes",
             "total_hashes",
             "snps",
@@ -152,6 +179,7 @@ def main():
         "sample",
         "species",
         "dist",
+        "GC",
         "snps",
         "insertions",
         "deletions",
@@ -166,6 +194,7 @@ def main():
         "insertions": "Insertions",
         "deletions": "Deletions",
         "n_variants": "Total variants",
+        "GC": "GC (%)",
     }
     latex_df = latex_df.rename(columns=rename_cols)
     latex_df = latex_df.sort_values("Total variants", ascending=False)

@@ -44,3 +44,7 @@ callers:
   - freebayes
   - longshot
   - nanocaller
+
+# list of callers that do not call indels
+no_indels:
+  - longshot

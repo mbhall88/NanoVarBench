@@ -1,7 +1,7 @@
 rule align_to_self:
     input:
         reads=rules.downsample_reads.output.reads,
-        reference=infer_reference_genome,
+        reference=rules.faidx_reference.output.fasta,
     output:
         alignment=RESULTS
         / "align/self/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam",
