@@ -29,7 +29,7 @@ rule stats_prefilter:
     threads: 4
     resources:
         mem_mb=8 * GB,
-        runtime="15m",
+        runtime="30m",
     benchmark:
         BENCH / "stats_prefilter/{mode}/{version}/{model}/{sample}.tsv"
     conda:

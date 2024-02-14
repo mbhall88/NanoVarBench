@@ -104,10 +104,13 @@ def main():
                     "3bp_hom_del",
                     "4bp_hom_del",
                     "5+bp_hom_del",
+                    "hom_del",
                     "2bp_hom_ins",
                     "3bp_hom_ins",
                     "4bp_hom_ins",
                     "5+bp_hom_ins",
+                    "hom_ins",
+                    "hom_indels",
                 ]
             ),
             file=output,
@@ -137,6 +140,11 @@ def main():
             if variants["DEL"] != 0
             else 0
         )
+        prop_hom_del = (
+            (sum([v for k, v in hom_dels.items()]) / variants["DEL"])
+            if variants["DEL"] != 0
+            else 0
+        )
         prop_2bp_hom_ins = (
             hom_ins.get(2, 0) / variants["INS"] if variants["INS"] != 0 else 0
         )
@@ -149,6 +157,20 @@ def main():
         prop_5bp_or_more_hom_ins = (
             (sum([v for k, v in hom_ins.items() if k >= 5]) / variants["INS"])
             if variants["INS"] != 0
+            else 0
+        )
+        prop_hom_ins = (
+            (sum([v for k, v in hom_ins.items()]) / variants["INS"])
+            if variants["INS"] != 0
+            else 0
+        )
+        prop_hom_indels = (
+            (
+                sum([v for k, v in hom_dels.items()])
+                + sum([v for k, v in hom_ins.items()])
+            )
+            / (variants["INS"] + variants["DEL"])
+            if (variants["INS"] + variants["DEL"]) != 0
             else 0
         )
 
@@ -176,10 +198,13 @@ def main():
                     str(prop_3bp_hom_del),
                     str(prop_4bp_hom_del),
                     str(prop_5bp_or_more_hom_del),
+                    str(prop_hom_del),
                     str(prop_2bp_hom_ins),
                     str(prop_3bp_hom_ins),
                     str(prop_4bp_hom_ins),
                     str(prop_5bp_or_more_hom_ins),
+                    str(prop_hom_ins),
+                    str(prop_hom_indels),
                 ]
             ),
             file=output,
@@ -211,10 +236,13 @@ def main():
                 "3bp_hom_del": prop_3bp_hom_del,
                 "4bp_hom_del": prop_4bp_hom_del,
                 "5+bp_hom_del": prop_5bp_or_more_hom_del,
+                "hom_del": prop_hom_del,
                 "2bp_hom_ins": prop_2bp_hom_ins,
                 "3bp_hom_ins": prop_3bp_hom_ins,
                 "4bp_hom_ins": prop_4bp_hom_ins,
                 "5+bp_hom_ins": prop_5bp_or_more_hom_ins,
+                "hom_ins": prop_hom_ins,
+                "hom_indels": prop_hom_indels,
             },
             output_json,
             indent=4,
