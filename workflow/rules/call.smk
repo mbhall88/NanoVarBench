@@ -1,5 +1,54 @@
 REPEAT = config.get("repeat", 1)
 
+
+rule call_self_illumina:
+    input:
+        r1=rules.preprocess_illumina.output.r1,
+        r2=rules.preprocess_illumina.output.r2,
+        reference=rules.faidx_reference.output.fasta,
+    output:
+        vcf=RESULTS / "call/self/illumina/{sample}/{sample}.vcf.gz",
+        alignment=RESULTS / "call/self/illumina/{sample}/{sample}.bam",
+    log:
+        LOGS / "call_self_illumina/{sample}.log",
+    benchmark:
+        repeat(
+            BENCH / "call_self_illumina/{sample}.tsv",
+            REPEAT,
+        )
+    threads: 4
+    resources:
+        mem_mb=12 * GB,
+        runtime="4h",
+    params:
+        opts="--force --prefix {sample}",
+        outdir=lambda wildcards, output: Path(output.vcf).parent,
+    container:
+        "docker://quay.io/biocontainers/snippy:4.6.0--hdfd78af_3"
+    shell:
+        """
+        snippy {params.opts} --cpus {threads} --reference {input.reference} \
+            --R1 {input.r1} --R2 {input.r2} --outdir {params.outdir} 2> {log}
+        """
+
+
+use rule call_self_illumina as call_mutref_illumina with:
+    input:
+        r1=rules.preprocess_illumina.output.r1,
+        r2=rules.preprocess_illumina.output.r2,
+        reference=rules.faidx_mutref.input.reference,
+    output:
+        vcf=RESULTS / "call/mutref/illumina/{sample}/{sample}.vcf.gz",
+        alignment=RESULTS / "call/mutref/illumina/{sample}/{sample}.bam",
+    log:
+        LOGS / "call_mutref_illumina/{sample}.log",
+    benchmark:
+        repeat(
+            BENCH / "call_mutref_illumina/{sample}.tsv",
+            REPEAT,
+        )
+
+
 caller = "bcftools"
 
 
@@ -349,3 +398,15 @@ rule filter_variants:
             bcftools sort |                                                 # sort VCF
             bcftools view -i 'GT="A"' -o {output.vcf} --write-index)        # remove non-alt alleles and write index
         """
+
+
+use rule filter_variants as filter_variants_illumina with:
+    input:
+        vcf=RESULTS / "call/{ref}/illumina/{sample}/{sample}.vcf.gz",
+        reference=infer_vcf_reference,
+        faidx=infer_vcf_reference_faidx,
+        filter_script=SCRIPTS / "filter_hets.py",
+    output:
+        vcf=RESULTS / "call/{ref}/illumina/{sample}/{sample}.filter.vcf.gz",
+    log:
+        LOGS / "filter_variants_illumina/{ref}/{sample}.log",

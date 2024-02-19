@@ -2,6 +2,7 @@
 and also minimap2, finds synteny and structural rearrangements, for each alignment 
 with syri, and then plots each alignment with plotsr.
 """
+
 import argparse
 import subprocess
 import sys
@@ -135,11 +136,59 @@ def main():
     ref = args.ref
     donor = prefix.with_suffix(".qry.fasta")
 
+    # filter ref and donor so they have the same chromosomes
+    logger.debug("Filtering reference and donor genomes...")
+    ref_filtered = tmpdir / "ref.filtered.fa"
+    donor_filtered = tmpdir / "donor.filtered.fa"
+    ref_chrs = set()
+    donor_chrs = set()
+    with open(ref) as f:
+        for line in f:
+            if line.startswith(">"):
+                ref_chrs.add(line.split()[0][1:])
+    with open(donor) as f:
+        for line in f:
+            if line.startswith(">"):
+                donor_chrs.add(line.split()[0][1:])
+
+    common_chrs = ref_chrs & donor_chrs
+    if not common_chrs:
+        logger.error("No common chromosomes found between reference and donor")
+        sys.exit(1)
+    else:
+        logger.debug("Common chromosomes: {}", common_chrs)
+
+    with open(ref_filtered, "w") as out:
+        with open(ref) as f:
+            keep_seq = False
+            for line in f:
+                if line.startswith(">"):
+                    if line.split()[0][1:] in common_chrs:
+                        keep_seq = True
+                        out.write(line)
+                    else:
+                        keep_seq = False
+                elif keep_seq:
+                    out.write(line)
+
+    with open(donor_filtered, "w") as out:
+        with open(donor) as f:
+            keep_seq = False
+            for line in f:
+                if line.startswith(">"):
+                    if line.split()[0][1:] in common_chrs:
+                        keep_seq = True
+                        out.write(line)
+                    else:
+                        keep_seq = False
+                elif keep_seq:
+                    out.write(line)
+
     logger.info("Running nucmer...")
     delta = tmpdir / "nucmer.delta"
     delta_filt = tmpdir / "nucmer.1delta"
     coords = tmpdir / "nucmer.coords"
-    cmd = f"nucmer -t {args.threads} --maxmatch --prefix={tmpdir}/nucmer {ref} {donor}"
+    cmd = f"nucmer -t {args.threads} --maxmatch --prefix={tmpdir}/nucmer {ref_filtered} {donor_filtered}"
     logger.debug("Running nucmer command: {}", cmd)
     proc = subprocess.run(cmd, shell=True, capture_output=True)
     if proc.returncode != 0:
@@ -165,7 +214,7 @@ def main():
     logger.info("Running minimap2...")
     mm2_aln = tmpdir / "minimap2.paf"
     cmd = (
-        f"minimap2 -x asm5 -t {args.threads} --eqx -c --cs {ref} {donor} | "
+        f"minimap2 -x asm5 -t {args.threads} --eqx -c --cs {ref_filtered} {donor_filtered} | "
         f"sort -k6,6 -k8,8n > {mm2_aln}"
     )
     logger.debug("Running minimap2 command: {}", cmd)
@@ -175,7 +224,7 @@ def main():
         sys.exit(1)
 
     logger.info("Running syri on nucmer alignment...")
-    cmd = f"syri --nc {args.threads} --dir {tmpdir} --prefix nucmer. -c {coords} -d {delta_filt} -r {ref} -q {donor}"
+    cmd = f"syri --nc {args.threads} --dir {tmpdir} --prefix nucmer. -c {coords} -d {delta_filt} -r {ref_filtered} -q {donor_filtered}"
     logger.debug("Running syri command: {}", cmd)
     proc = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE)
     if proc.returncode != 0:
@@ -191,7 +240,7 @@ def main():
         sys.exit(1)
 
     logger.info("Running syri on minimap2 alignment...")
-    cmd = f"syri --nc {args.threads} --dir {tmpdir} --prefix minimap2. -c {mm2_aln} -r {ref} -q {donor} -F P"
+    cmd = f"syri --nc {args.threads} --dir {tmpdir} --prefix minimap2. -c {mm2_aln} -r {ref_filtered} -q {donor_filtered} -F P"
     logger.debug("Running syri command: {}", cmd)
     proc = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE)
 
@@ -213,8 +262,8 @@ def main():
     plotsr_opts = f"--cfg {config}"
     genomes = tmpdir / "genomes.txt"
     with open(genomes, "w") as f:
-        print(f"{ref}\treference\tlw:1.5", file=f)
-        print(f"{donor}\tdonor\tlw:1.5", file=f)
+        print(f"{ref_filtered}\treference\tlw:1.5", file=f)
+        print(f"{donor_filtered}\tdonor\tlw:1.5", file=f)
 
     nucmer_plot = outdir / "nucmer.plotsr.png"
     cmd = (

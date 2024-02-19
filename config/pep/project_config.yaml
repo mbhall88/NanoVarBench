@@ -3,7 +3,9 @@ sample_table: "samples.csv"
 
 sample_modifiers:
   derive:
-    attributes: [reads_dir, reference_path]
+    attributes: [reads_dir, reference_path, illumina_1, illumina_2]
     sources:
       source1: "/data/scratch/projects/punim2009/data/reads/"
       source2: "/data/scratch/projects/punim2009/data/references/{sample_name}.fa"
+      source3: "/data/scratch/projects/punim2009/data/illumina/{sample_name}_1.fq.gz"
+      source4: "/data/scratch/projects/punim2009/data/illumina/{sample_name}_2.fq.gz"

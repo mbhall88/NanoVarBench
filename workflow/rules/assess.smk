@@ -20,7 +20,18 @@ rule assess_self_calls:
         SCRIPTS / "assess_self_calls.py"
 
 
-rule combine_self_calls:
+use rule assess_self_calls as assess_self_calls_illumina with:
+    input:
+        vcf=RESULTS / "call/self/illumina/{sample}/{sample}.filter.vcf.gz",
+        reference=rules.call_self_illumina.input.reference,
+    output:
+        csv=RESULTS / "assess/self/illumina/{sample}.csv",
+        json=RESULTS / "assess/self/illumina/{sample}.json",
+    log:
+        LOGS / "assess_self_calls_illumina/{sample}.log",
+
+
+rule combine_self_calls_csvs:
     input:
         csvs=expand(
             RESULTS
@@ -35,7 +46,7 @@ rule combine_self_calls:
     output:
         csv=RESULTS / "assess/self/self_calls.csv",
     log:
-        log=LOGS / "combine_self_calls.log",
+        LOGS / "combine_self_calls_csvs.log",
     resources:
         runtime="2m",
         mem_mb=500,
@@ -45,9 +56,59 @@ rule combine_self_calls:
         SCRIPTS / "combine_csvs.py"
 
 
+use rule combine_self_calls_csvs as combine_self_calls_csvs_illumina with:
+    input:
+        csvs=expand(
+            RESULTS / "assess/self/illumina/{sample}.csv",
+            sample=SAMPLES,
+        ),
+    output:
+        csv=RESULTS / "assess/self/self_calls_illumina.csv",
+    log:
+        LOGS / "combine_self_calls_csvs_illumina.log",
+
+
+rule combine_self_calls_jsons:
+    input:
+        jsons=expand(
+            RESULTS
+            / "assess/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.json",
+            caller=CALLERS,
+            depth=[MAX_DEPTH],
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+            sample=SAMPLES,
+        ),
+    output:
+        json=RESULTS / "assess/self/self_calls.json",
+    log:
+        LOGS / "combine_self_calls_jsons.log",
+    resources:
+        runtime="2m",
+        mem_mb=2 * GB,
+    container:
+        "docker://python:3.11-slim"
+    script:
+        SCRIPTS / "combine_jsons.py"
+
+
+use rule combine_self_calls_jsons as combine_self_calls_jsons_illumina with:
+    input:
+        jsons=expand(
+            RESULTS / "assess/self/illumina/{sample}.json",
+            sample=SAMPLES,
+        ),
+    output:
+        json=RESULTS / "assess/self/self_calls_illumina.json",
+    log:
+        LOGS / "combine_self_calls_jsons_illumina.log",
+
+
 rule plot_self_fpr:
     input:
-        csv=rules.combine_self_calls.output.csv,
+        csv=rules.combine_self_calls_csvs.output.csv,
+        illumina_csv=rules.combine_self_calls_csvs_illumina.output.csv,
     output:
         snps_png=FIGURES / "assess/self/self_fpr.snps.png",
         indels_png=FIGURES / "assess/self/self_fpr.indels.png",
@@ -113,3 +174,22 @@ rule assess_mutref_calls:
         vcfdist {input.query_vcf} {input.truth_vcf} {input.mutref} {params.opts} \
             -p {params.prefix}. -b "$tmpbed" -mx $MAX_QUAL
         """
+
+
+use rule assess_mutref_calls as assess_mutref_calls_illumina with:
+    input:
+        query_vcf=RESULTS / "call/mutref/illumina/{sample}/{sample}.filter.vcf.gz",
+        truth_vcf=rules.create_mutref.output.truth_vcf,
+        mutref=rules.create_mutref.output.mutref,
+        faidx=rules.faidx_mutref.output.faidx,
+    output:
+        pr_summary=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.precision-recall-summary.tsv",
+        pr=RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv",
+        summary=RESULTS / "assess/mutref/illumina/{sample}/{sample}.summary.vcf",
+        query=RESULTS / "assess/mutref/illumina/{sample}/{sample}.query.tsv",
+        truth=RESULTS / "assess/mutref/illumina/{sample}/{sample}.truth.tsv",
+        dist_summary=RESULTS / "assess/mutref/illumina/{sample}/{sample}.distance-summary.tsv",
+        dist=RESULTS / "assess/mutref/illumina/{sample}/{sample}.distance.tsv",
+    log:
+        LOGS / "assess_mutref_calls_illumina/{sample}.log",

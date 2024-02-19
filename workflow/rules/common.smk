@@ -13,6 +13,14 @@ def infer_reference_genome(wildcards):
     return Path(pep.get_sample(wildcards.sample)["reference_path"])
 
 
+def infer_illumina_reads_1(wildcards):
+    return Path(pep.get_sample(wildcards.sample)["illumina_1"])
+
+
+def infer_illumina_reads_2(wildcards):
+    return Path(pep.get_sample(wildcards.sample)["illumina_2"])
+
+
 def infer_species(sample):
     return pep.get_sample(sample)["species"]
 

@@ -8,6 +8,7 @@
     - [`sample_table`](#sample_table)
     - [`reads_dir`](#reads_dir)
     - [`reference_path`](#reference_path)
+    - [`illumina_1` and `illumina_2`](#illumina_1-and-illumina_2)
 
 This directory contains files for configuring the pipeline. Instructions relevant for each files are as follows:
 
@@ -87,6 +88,8 @@ This is the path to the sample table, relative to this `project_config.yaml` fil
 - `taxid` the (NCBI) taxonomy ID for the species
 - `reads_dir` see [here](#reads_dir) for more detail
 - `reference_path` see [here](#reference_path) for more detail
+- `illumina_1` see [here](#illumina_1-and-illumina_2) for more detail
+- `illumina_2` see [here](#illumina_1-and-illumina_2) for more detail
 
 ### `reads_dir`
 
@@ -123,6 +126,10 @@ $ tree reads_dir/
 ### `reference_path`
 
 Similar to [`reads_dir`](#reads_dir), this column is a placeholder for the path to the reference genome of this sample. However, rather than being to a directory, this is a concrete path to a FASTA file. In our sample table, you will see values like `source2`. This is replaced during PEP valdation with the value indicated in the `project_config.yaml` section `sample_modifiers` > `derive` > `sources` > `source2`. An example from our config is `/data/ont/references/{sample_name}.fa`, where `{sample_name}` will be replaced with the sample name for that row, dynamically, on validation (when the pipeline is run). If you have references in various places that don't all follow the same naming convention then create a new source variable (e.g. `source8`) and add it to the list of `sources` as in our example.
+
+### `illumina_1` and `illumina_2`
+
+These columns are a placeholder for the path to the Illumina reads for each sample. In our sample table, you will see values like `source3` and `source4`. This is replaced during PEP valdation with the value indicated in the `project_config.yaml` section `sample_modifiers` > `derive` > `sources` > `source3`. An example from our config is `/data/illumina/{sample_name}_1.fq.gz`, where `{sample_name}` will be replaced with the sample name for that row, dynamically, on validation (when the pipeline is run). If you have files in various places that don't all follow the same naming convention then create a new source variable (e.g. `source8`) and add it to the list of `sources` as in our example.
 
 [pepschema]: http://eido.databio.org/en/latest/writing-a-schema/
 [pepconfig]: http://pep.databio.org/en/latest/specification/#project-config-file-specification

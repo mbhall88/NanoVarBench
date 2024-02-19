@@ -43,6 +43,17 @@ function parse_params() {
 
 parse_params "$@"
 
+# make sure dorado and samtools are in the PATH
+if ! command -v "$dorado" &>/dev/null; then
+    echo "dorado not found in PATH" >&2
+    exit 1
+fi
+
+if ! command -v samtools &>/dev/null; then
+    echo "samtools not found in PATH" >&2
+    exit 1
+fi
+
 mkdir -p "$outdir"
 cd "$outdir" || exit 1
 

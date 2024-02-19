@@ -157,3 +157,30 @@ use rule combine_stats_prefilter as combine_stats_downsample with:
         stats=RESULTS / "QC/stats/downsample/{depth}x/{mode}/{version}/{model}.csv",
     log:
         LOGS / "combine_stats_downsample/{depth}x/{mode}/{version}/{model}.log",
+
+
+rule preprocess_illumina:
+    input:
+        r1=infer_illumina_reads_1,
+        r2=infer_illumina_reads_2,
+    output:
+        r1=RESULTS / "preprocess/illumina/{sample}_1.fq.gz",
+        r2=RESULTS / "preprocess/illumina/{sample}_2.fq.gz",
+        json=RESULTS / "preprocess/illumina/{sample}.json",
+    log:
+        LOGS / "preprocess_illumina/{sample}.log",
+    resources:
+        mem_mb=8 * GB,
+        runtime="1h",
+    threads: 4
+    container:
+        "docker://quay.io/biocontainers/fastp:0.23.4--hadf994f_2"
+    shadow:
+        "shallow"
+    params:
+        opts="-l 30 --cut_tail --dedup --detect_adapter_for_pe",
+    shell:
+        """
+        fastp {params.opts} -i {input.r1} -I {input.r2} -o {output.r1} -O {output.r2} \
+            -w {threads} -j {output.json} &> {log}
+        """
