@@ -13,17 +13,20 @@ rule create_mutref:
     log:
         LOGS / "create_mutref/{sample}.log",
     resources:
-        mem_mb=8 * GB,
+        mem_mb=32 * GB,
         runtime="12h",
     threads: 8
     conda:
         ENVS / "create_mutref.yaml"
     params:
         taxid=infer_taxid,
-        distance=truth_config["mash_distance"],
-        max_distance=truth_config["max_mash_distance"],
-        min_distance=truth_config["min_mash_distance"],
+        ani=truth_config["ANI"],
+        max_ani=truth_config["max_ANI"],
+        min_ani=truth_config["min_ANI"],
         max_asm=truth_config["max_assemblies"],
+        max_contam=truth_config["max_contamination"],
+        min_completeness=truth_config["min_completeness"],
+        min_comp_perc=truth_config["min_completeness_percentile"],
         outdir=lambda wildcards, output: Path(output.mutref).parent,
         max_indel=truth_config["max_indel"],
         asm_lvl='""',
@@ -36,9 +39,12 @@ rule create_mutref:
         python {input.script} \
             {params.flags} \
             -s {params.taxid} \
-            -d {params.distance} \
-            -M {params.max_distance} \
-            -m {params.min_distance} \
+            -a {params.ani} \
+            -M {params.max_ani} \
+            -m {params.min_ani} \
+            -C {params.min_completeness} \
+            -P {params.min_comp_perc} \
+            -X {params.max_contam} \
             -t {threads} \
             -o {params.outdir} \
             -I {params.max_indel} \

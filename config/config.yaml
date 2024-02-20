@@ -24,14 +24,20 @@ mode:
 truth:
   # Maximum indel length to allow in the truth and call variant sets
   max_indel: 50
-  # The desired mash distance between the reference and donor when generating the truth set
-  mash_distance: 0.005
-  # The minimum mash distance between the reference and donor when generating the truth set
-  min_mash_distance: 0.002
-  # The maximum mash distance between the reference and donor when generating the truth set
-  max_mash_distance: 0.015
+  # The desired ANI between the reference and donor when generating the truth set
+  ANI: 99.50
+  # The minimum ANI between the reference and donor when generating the truth set
+  min_ANI: 98.40
+  # The maximum ANI between the reference and donor when generating the truth set
+  max_ANI: 99.80
   # The maximum number of assemblies to download for distance calculation
   max_assemblies: 10000
+  # The maximum allowed (CheckM) contamination of the donor
+  max_contamination: 10
+  # The minimum allowed (CheckM) completeness of the donor
+  min_completeness: 90
+  # The minimum allowed (CheckM) completeness percentile of the donor
+  min_completeness_percentile: 25
 
 # number of times to repeat running the variant calling rules. This is intended for
 # benchmarking purposes only, and should be set to 1 for normal use.

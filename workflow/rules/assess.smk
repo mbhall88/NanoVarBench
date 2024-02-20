@@ -189,7 +189,8 @@ use rule assess_mutref_calls as assess_mutref_calls_illumina with:
         summary=RESULTS / "assess/mutref/illumina/{sample}/{sample}.summary.vcf",
         query=RESULTS / "assess/mutref/illumina/{sample}/{sample}.query.tsv",
         truth=RESULTS / "assess/mutref/illumina/{sample}/{sample}.truth.tsv",
-        dist_summary=RESULTS / "assess/mutref/illumina/{sample}/{sample}.distance-summary.tsv",
+        dist_summary=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.distance-summary.tsv",
         dist=RESULTS / "assess/mutref/illumina/{sample}/{sample}.distance.tsv",
     log:
         LOGS / "assess_mutref_calls_illumina/{sample}.log",

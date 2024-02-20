@@ -26,10 +26,13 @@ The pipeline configuration file.
 - `mode` lists the sequencing modes you want to test - i.e., simplex, duplex
 - `max_indel` the maximum indel length that will be allowed in the truth variants and assessed in the called variants.
 - `truth` parameters related to the generation of the truth set of variants
-  - `mash_distance` The [mash] distance between the reference and donor when generating the truth set. The closest distance will be chosen. Mash distance approximates the sequence divergence (i.e., 1-ANI).
-  - `min_mash_distance` The minimum mash distance between the reference and donor when generating the truth set
-  - `max_mash_distance` The maximum mash distance between the reference and donor when generating the truth set
+  - `ANI` The [ANI] between the reference and donor when generating the truth set. The closest ANI will be chosen.
+  - `min_ANI` The minimum ANI between the reference and donor when generating the truth set
+  - `max_ANI` The maximum ANI between the reference and donor when generating the truth set
   - `max_assemblies` The maximum number of assemblies to download for distance calculation
+  - `max_contamination` The maximum allowed [CheckM contamination][checkm] for the donor genome
+  - `min_completeness` The minimum allowed [CheckM completeness][checkm] for the donor genome
+  - `min_completeness` The minimum allowed completeness percentile of the donor genome, measured against all other RefSeq assemblies for the same species
 - `repeat` the number of times to repeat each variant calling rule. This is intended for benchmarking purposes and can be set to 1 for normal use.
 - `callers` see the [callers section](#variant-caller-configuration).
 - `no_indels` a list of `callers` that do not call indels
@@ -136,6 +139,7 @@ These columns are a placeholder for the path to the Illumina reads for each samp
 [pep]: http://pep.databio.org/en/latest/
 [pepsample]: http://pep.databio.org/en/latest/specification/#sample-table-specification
 [peppathguide]: http://pep.databio.org/en/latest/howto_eliminate_paths/
-[mash]: https://github.com/marbl/Mash
+[ANI]: https://doi.org/10.1038/s41467-018-07641-9
 [runtime]: https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#snakefiles-standard-resources
 [smk-script]: https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#external-scripts
+[checkm]: https://github.com/Ecogenomics/CheckM/wiki/Reported-Statistics#qa

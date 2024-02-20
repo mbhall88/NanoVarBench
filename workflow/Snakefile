@@ -55,7 +55,9 @@ for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DE
 
 for sample in SAMPLES:
     target_files.add(FIGURES / f"plot_synteny/{sample}/minimap2.plotsr.png")
-    target_files.add(RESULTS / f"assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv")
+    target_files.add(
+        RESULTS / f"assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv"
+    )
 
 target_files.add(TABLES / "mutref_summary.csv")
 target_files.add(FIGURES / "assess/self/self_fpr.snps.png")

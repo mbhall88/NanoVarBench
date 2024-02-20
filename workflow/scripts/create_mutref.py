@@ -1,5 +1,5 @@
 """This script creates a truth VCF for a reference genome. Variants are taken from a 
-donor genome of the given species, with a given mash distance from the reference 
+donor genome of the given species, with a given ANI from the reference 
 genome. The variants are generated using minimap2 and dnadiff, and then merged, 
 normalised, and filtered using bcftools. The final VCF is then used to create a mutant 
 reference genome using bcftools consensus.
@@ -21,6 +21,7 @@ from typing import Dict, List, Tuple
 from uuid import uuid4
 
 import pyfastaq
+import requests
 from intervaltree import Interval, IntervalTree
 from loguru import logger
 
@@ -56,7 +57,7 @@ def setup_logging(verbose: int = 0, quiet: bool = False) -> None:
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description="Create a truth VCF for a reference genome. Variants are taken from a donor genome of the given species, with a given mash distance from the reference genome.",
+        description=__doc__,
     )
     parser.add_argument("reference_genome", type=str, help="Reference genome")
     parser.add_argument(
@@ -67,25 +68,46 @@ def parse_args():
         help='Species - e.g., "s__Escherichia coli" (GTDB) or "Escherichia coli" (NCBI)',
     )
     parser.add_argument(
-        "-d",
-        "--mash-distance",
+        "-a",
+        "--ani",
         type=float,
-        default=0.005,
-        help="Pick genome with mash distance closest to this value",
+        default=99.50,
+        help="Pick genome with ANI closest to this value",
     )
     parser.add_argument(
         "-m",
-        "--min-distance",
+        "--min-ani",
         type=float,
         default=0.0,
-        help="Minimum mash distance to consider",
+        help="Minimum ANI to consider",
     )
     parser.add_argument(
         "-M",
-        "--max-distance",
+        "--max-ani",
         type=float,
-        default=1.0,
-        help="Maximum mash distance to consider",
+        default=100.0,
+        help="Maximum ANI to consider",
+    )
+    parser.add_argument(
+        "-C",
+        "--min-completeness",
+        type=float,
+        default=0.0,
+        help="Minimum assembly (CheckM) completeness (%%) to consider",
+    )
+    parser.add_argument(
+        "-P",
+        "--min-completeness-percentile",
+        type=float,
+        default=0.0,
+        help="Minimum assembly (CheckM) completeness percentile (%%) to consider",
+    )
+    parser.add_argument(
+        "-X",
+        "--max-contamination",
+        type=float,
+        default=100.0,
+        help="Maximum assembly (CheckM) contamination (%%) to consider",
     )
     parser.add_argument(
         "-c",
@@ -121,9 +143,6 @@ def parse_args():
         type=int,
         default=10_000,
         help="Maximum number of assemblies to download. 0 for all",
-    )
-    parser.add_argument(
-        "-S", "--sketch-size", type=int, default=10000, help="Mash sketch size"
     )
     parser.add_argument(
         "-o", "--outdir", type=str, default="./mutref", help="Output directory"
@@ -229,20 +248,19 @@ def download_genomes(
         logger.trace(f"genome_updater.sh output:\n{proc.stdout}")
 
 
-def sketch_genomes(fofn: str, outprefix: str, threads: int, sketch_size: int) -> None:
+def calculate_ANI(ref_list: str, query_genome: str, threads: int, output: str) -> None:
     args = [
-        "mash",
-        "sketch",
-        "-p",
-        str(threads),
+        "fastANI",
         "-o",
-        outprefix,
-        "-l",
-        fofn,
-        "-s",
-        str(sketch_size),
+        output,
+        "-t",
+        str(threads),
+        "--rl",
+        ref_list,
+        "-q",
+        query_genome,
     ]
-    logger.debug(f"Running mash sketch with args: {' '.join(args)}")
+    logger.debug(f"Running fastANI with args: {' '.join(args)}")
     proc = subprocess.run(
         args,
         stderr=subprocess.STDOUT,
@@ -251,41 +269,16 @@ def sketch_genomes(fofn: str, outprefix: str, threads: int, sketch_size: int) ->
     )
 
     if proc.returncode != 0:
-        logger.error("Error sketching genomes")
+        logger.error("Error running fastANI")
         logger.error(proc.stdout)
         sys.exit(1)
     else:
-        logger.trace(f"mash sketch output:\n{proc.stdout}")
+        logger.trace(f"fastANI output:\n{proc.stdout}")
 
 
-def get_mash_distances(
-    sketch_file: str,
-    query_genome: str,
-    dist_mtx: str,
-    threads: int,
-    sketch_size: int,
-) -> None:
-    cmd = f"mash dist -p {threads} -s {sketch_size} {sketch_file} {query_genome} | sort -g -k3"
-
-    logger.debug(f"Running mash dist with args: {cmd}")
-    with open(dist_mtx, "w") as f:
-        proc = subprocess.run(
-            cmd,
-            shell=True,
-            stderr=subprocess.PIPE,
-            stdout=f,
-            text=True,
-        )
-
-    if proc.returncode != 0:
-        logger.error("Error running mash dist")
-        logger.error(proc.stderr)
-        sys.exit(1)
-    else:
-        logger.trace(f"mash dist output:\n{proc.stderr}")
-
-
-def argclosest(array: List[Tuple[float, int]], value: float) -> Tuple[float, int]:
+def argclosest(
+    array: List[Tuple[float, int, float, float, float]], value: float
+) -> Tuple[float, int, float, float, float]:
     """Takes a list of tuples (distance, index) and returns the index of the distance closest to the given value"""
     argmin = min(range(len(array)), key=lambda i: abs(array[i][0] - value))
     return array[argmin]
@@ -1024,6 +1017,55 @@ def fastas_match(fasta1: str, fasta2: str) -> bool:
     return True
 
 
+def fetch_genome_checkm_info(acc: str) -> float:
+    """Fetch the CheckM info of a genome from the NCBI assembly summary"""
+    url = f"https://api.ncbi.nlm.nih.gov/datasets/v2alpha/genome/accession/{acc}/dataset_report"
+    response = requests.get(url)
+    if response.status_code != 200:
+        logger.error(f"Failed to fetch genome completeness for {acc}")
+        logger.error(response.text)
+        return 0.0
+
+    data = response.json()
+    report = data.get("reports", [{}])[0]
+    if not report:
+        logger.error(f"Failed to fetch genome report for {acc}")
+        sys.exit(1)
+
+    assembly_status = report.get("assembly_info", {}).get("assembly_status")
+    if assembly_status is None:
+        logger.error(f"Assembly status not found for {acc}")
+        sys.exit(1)
+    elif assembly_status.lower() == "suppressed":
+        logger.warning(
+            f"Assembly status is suppressed for {acc}, assuming 0% completeness and 100% contamination..."
+        )
+        return 0, 0, 0.0, 100.0
+
+    checkm_info = report.get("checkm_info")
+    if checkm_info is None:
+        logger.warning(
+            f"CheckM info not found for {acc}, assuming 100% completeness and 0% contamination..."
+        )
+        return 100.0, 100.0, 0.0
+    try:
+        completeness_percentile = float(checkm_info["completeness_percentile"])
+    except KeyError:
+        logger.error(f"Completeness percentile not found for {acc}")
+        sys.exit(1)
+    try:
+        completeness = float(checkm_info["completeness"])
+    except KeyError:
+        logger.error(f"Completeness not found for {acc}")
+        sys.exit(1)
+    try:
+        contamination = float(checkm_info["contamination"])
+    except KeyError:
+        logger.warning(f"Contamination not found for {acc}, using 0.0%")
+        contamination = 0.0
+    return completeness_percentile, completeness, contamination
+
+
 def main():
     args = parse_args()
     setup_logging(args.verbose, args.quiet)
@@ -1037,7 +1079,7 @@ def main():
         shutil.rmtree(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    dependencies = ["mash", "bcftools", "paftools.js"]
+    dependencies = ["fastANI", "bcftools", "paftools.js"]
 
     if args.existing is None:
         dependencies.append("genome_updater.sh")
@@ -1098,51 +1140,75 @@ def main():
     genomes_files = tmpdir / "genomes.txt"
     genomes_files.write_text("\n".join([str(g) for g in genomes]))
 
-    logger.info(f"Finding genomes around a mash distance of {args.mash_distance}...")
-
-    sketch_file = tmpdir / "sketch.msh"
-    sketch_prefix = sketch_file.parent / sketch_file.stem
-    sketch_genomes(
-        str(genomes_files), str(sketch_prefix), args.threads, args.sketch_size
-    )
+    logger.info(f"Finding genomes around ANI of {args.ani}...")
 
     dist_mtx = outdir / "distances.tsv"
-    get_mash_distances(
-        str(sketch_file),
-        args.reference_genome,
-        str(dist_mtx),
-        args.threads,
-        args.sketch_size,
+    calculate_ANI(
+        str(genomes_files), args.reference_genome, str(args.threads), str(dist_mtx)
     )
 
-    logger.info(f"You can find the full list of genomes and distances in {dist_mtx}")
+    logger.info(f"You can find the full list of genomes and ANIs in {dist_mtx}")
 
     with open(dist_mtx, "r") as f:
         distances = []
         for i, line in enumerate(f):
-            fields = line.strip().split("\t")
-            dist = float(fields[2])
-            if args.min_distance <= dist <= args.max_distance:
-                distances.append((dist, i))
+            _query, ref, ani, _mappings, _fragments = line.strip().split("\t")
+            fname = Path(ref).name
+            acc = "_".join(fname.split("_", maxsplit=2)[:2])
+
+            ani = float(ani)
+            if args.min_ani <= ani <= args.max_ani:
+                distances.append((ani, i, acc))
 
     if len(distances) == 0:
         logger.error(
-            f"No genomes found with a mash distance between {args.min_distance} and {args.max_distance}"
+            f"No genomes found with ANI between {args.min_ani} and {args.max_ani}"
         )
         sys.exit(1)
 
-    # get the index of the line closest to mash_distance
-    _, lineno = argclosest(distances, args.mash_distance)
+    dists_that_pass_quality = []
+    for ani, i, acc in distances:
+        completeness_percentile, completeness, contamination = fetch_genome_checkm_info(
+            acc
+        )
+        passes_quality_check = (
+            completeness >= args.min_completeness
+            and contamination <= args.max_contamination
+            and completeness_percentile >= args.min_completeness_percentile
+        )
+        if passes_quality_check:
+            dists_that_pass_quality.append(
+                (ani, i, completeness, contamination, completeness_percentile)
+            )
+
+    if len(dists_that_pass_quality) == 0:
+        logger.error(
+            f"No genomes found that pass the quality check: completeness >= {args.min_completeness}, contamination <= {args.max_contamination}, and completeness percentile >= {args.min_completeness_percentile}"
+        )
+        sys.exit(1)
+
+    # get the index of the line closest to ANI
+    (
+        _,
+        lineno,
+        donor_completeness,
+        donor_contamination,
+        donor_completeness_percentile,
+    ) = argclosest(dists_that_pass_quality, args.ani)
 
     # get the genome name from the line number
     with open(dist_mtx, "r") as f:
         donor_fields = f.readlines()[lineno].strip().split("\t")
-        donor_genome = Path(donor_fields[0]).resolve()
-        donor_dist = float(donor_fields[2])
-        donor_shared_hashes = donor_fields[4]
+        donor_genome = Path(donor_fields[1]).resolve()
+        donor_ani = float(donor_fields[2])
+        donor_aln_frac = float(float(donor_fields[3]) / float(donor_fields[4]))
+
+    if donor_completeness is None:
+        logger.error(f"Could not find the genome at line {lineno} in {dist_mtx}")
+        sys.exit(1)
 
     logger.success(
-        f"Using {donor_genome.name}, which has a mash distance of {donor_dist} and {donor_shared_hashes} shared hashes"
+        f"Using {donor_genome.name}, which has ANI {donor_ani}, alignment fraction {donor_aln_frac}, {donor_completeness}% completeness, {donor_contamination}% contamination, and {donor_completeness_percentile}% completeness percentile"
     )
 
     # copy the genome to the output directory and decompress it if necessary

@@ -8,6 +8,7 @@ dependencies:
   - bcftools>=1.18
   - genome_updater=0.6
   - loguru
-  - mash=2.3
+  - fastani=1.34
   - mummer4=4.0.0rc1
   - intervaltree=3
+  - requests
