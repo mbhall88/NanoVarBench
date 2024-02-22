@@ -45,20 +45,23 @@ def main():
             contents = f.read()
 
         # example line: [2024-01-25 12:05:58] SUCCESS  | Downloaded 10000 genomes
-        m = re.search(r"Downloaded (\d+) genomes", contents)
+        m = re.search(r"(Downloaded|Found) (?P<num>\d+) genomes", contents)
         if m:
-            n_genomes = int(m.group(1))
+            n_genomes = int(m.group("num"))
         else:
             raise Exception(f"Could not find number of genomes in {log}")
 
-        # example line: [2024-01-25 12:07:55] SUCCESS  | Using GCF_018995165.1_ASM1899516v1_genomic.fna.gz, which has a mash distance of 0.00393593 and 8530/10000 shared hashes
-        pattern = r"Using (?P<acc>GC[AF]_\d+\.\d+).*\.fna\.gz, which has a mash distance of (?P<dist>\d+\.\d+) and (?P<shared_hashes>\d+)/(?P<total_hashes>\d+) shared hashes"
+        # example line: [2024-02-21 15:33:21] SUCCESS  | Using GCF_903931365.1_0796_06_genomic.fna.gz, which has ANI 99.36, 99.3% completeness, 0.45% contamination, and 33.35681% completeness percentile
+        pattern = r"Using (?P<acc>GC[AF]_\d+\.\d+).*\.fna\.gz, which has ANI (?P<ani>\d+\.\d+), (?P<completeness>\d+\.\d+)% completeness, (?P<contamination>\d+\.\d+)% contamination, and (?P<completeness_percentile>\d+\.\d+)% completeness percentile"
         m = re.search(pattern, contents)
         if m:
             acc = m.group("acc")
-            dist = float(m.group("dist"))
-            shared_hashes = int(m.group("shared_hashes"))
-            total_hashes = int(m.group("total_hashes"))
+            ani = float(m.group("ani"))
+            completeness = float(m.group("completeness"))
+            contamination = float(m.group("contamination"))
+            completeness_percentile = round(
+                float(m.group("completeness_percentile")), 2
+            )
         else:
             raise Exception(f"Could not find donor information in {log}")
 
@@ -122,7 +125,8 @@ def main():
         deletions = deletions_1bp + deletions_2bp + deletions_long
         insertions = insertions_1bp + insertions_2bp + insertions_long
         n_variants = snps + insertions + deletions
-        gc = gc_content[sample] * 100  # convert to percentage
+        # convert GC to percentage and round to 2 decimal places
+        gc = round(gc_content[sample] * 100, 2)
 
         data.append(
             (
@@ -130,10 +134,11 @@ def main():
                 species,
                 n_genomes,
                 acc,
-                dist,
+                ani,
                 gc,
-                shared_hashes,
-                total_hashes,
+                completeness,
+                completeness_percentile,
+                contamination,
                 snps,
                 insertions_1bp,
                 insertions_2bp,
@@ -155,10 +160,11 @@ def main():
             "species",
             "n_genomes",
             "acc",
-            "dist",
+            "ani",
             "GC",
-            "shared_hashes",
-            "total_hashes",
+            "completeness",
+            "completion_percentile",
+            "contamination",
             "snps",
             "insertions_1bp",
             "insertions_2bp",
@@ -178,7 +184,7 @@ def main():
     latex_cols = [
         "sample",
         "species",
-        "dist",
+        "ani",
         "GC",
         "snps",
         "insertions",
@@ -189,7 +195,7 @@ def main():
     rename_cols = {
         "sample": "Sample",
         "species": "Species",
-        "dist": "Distance",
+        "ani": "ANI (%)",
         "snps": "SNPs",
         "insertions": "Insertions",
         "deletions": "Deletions",
@@ -201,7 +207,7 @@ def main():
 
     # Write Latex
     caption = (
-        "Summary of the Mash distance and number of variants found between each sample and "
+        "Summary of the ANI and number of variants found between each sample and "
         "its donor genome."
     )
     label = "tab:mutref_summary"
@@ -210,7 +216,7 @@ def main():
         index=False,
         escape=True,
         na_rep="-",
-        float_format="%.4f",
+        float_format="%.2f",
         caption=caption,
         label=label,
         position=position,

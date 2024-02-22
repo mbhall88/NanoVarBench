@@ -8,7 +8,7 @@ dependencies:
   - bcftools>=1.18
   - genome_updater=0.6
   - loguru
-  - fastani=1.34
+  - skani=0.2.1
   - mummer4=4.0.0rc1
   - intervaltree=3
-  - requests
+  - ncbi-datasets-cli=16.4

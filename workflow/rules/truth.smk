@@ -1,10 +1,36 @@
 truth_config = config["truth"]
 
+ # the create_mutref script can do this download, but doing it manually means troubleshooting is faster
+rule download_genomes:
+    output:
+        outdir=directory(RESULTS / "truth/genomes/{sample}/"),
+    log:
+        LOGS / "download_genomes/{sample}.log",
+    threads: 32
+    resources:
+        mem_mb=4 * GB,
+        runtime="4h",
+    conda:
+        ENVS / "download_genomes.yaml"
+    shadow:
+        "shallow"
+    params:
+        taxid=infer_taxid,
+        max_asm=truth_config["max_assemblies"],
+        taxonomy="ncbi",
+        opts="-d refseq -g bacteria -f genomic.fna.gz -m -a"
+    shell:
+        """
+        genome_updater.sh {params.opts} -o {output.outdir} -M {params.taxonomy} \
+            -T {params.taxid} -A species:{params.max_asm} -m -a -t {threads} -l "" 2>{log}
+        """
+
 
 rule create_mutref:
     input:
         genome=rules.faidx_reference.output.fasta,
         script=SCRIPTS / "create_mutref.py",
+        genomes=rules.download_genomes.output.outdir,
     output:
         mutref=RESULTS / "truth/{sample}/mutreference.fna",
         truth_vcf=RESULTS / "truth/{sample}/truth.vcf.gz",
@@ -13,8 +39,8 @@ rule create_mutref:
     log:
         LOGS / "create_mutref/{sample}.log",
     resources:
-        mem_mb=32 * GB,
-        runtime="12h",
+        mem_mb=lambda wildcards, attempt: 32 * GB * attempt,
+        runtime="2h",
     threads: 8
     conda:
         ENVS / "create_mutref.yaml"
@@ -51,6 +77,7 @@ rule create_mutref:
             -l {params.asm_lvl} \
             -T {params.taxonomy} \
             -A {params.max_asm} \
+            -f {input.genomes} \
             {input.genome} 2> {log}
         """
 
@@ -110,6 +137,8 @@ rule plot_synteny:
     params:
         outdir=lambda wildcards, output: Path(output.minimap2_plot).parent,
         flags="-v",
+    shadow:
+        "shallow"
     shell:
         """
         python {input.script} \

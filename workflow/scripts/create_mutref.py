@@ -8,6 +8,7 @@ reference genome using bcftools consensus.
 import argparse
 import atexit
 import gzip
+import json
 import operator
 import random
 import re
@@ -21,7 +22,6 @@ from typing import Dict, List, Tuple
 from uuid import uuid4
 
 import pyfastaq
-import requests
 from intervaltree import Interval, IntervalTree
 from loguru import logger
 
@@ -31,6 +31,7 @@ LOG_FMT = (
     "<level>{message}</level>"
 )
 FASTA_REGEX = re.compile(r"^.*(\.fa|\.fasta|\.fna)(\.gz)?$")
+ACC_REGEX = re.compile(r"(?P<acc>GC[AF]_\d+\.\d+)")
 SNP = 1
 DEL = 2
 INS = 3
@@ -248,19 +249,9 @@ def download_genomes(
         logger.trace(f"genome_updater.sh output:\n{proc.stdout}")
 
 
-def calculate_ANI(ref_list: str, query_genome: str, threads: int, output: str) -> None:
-    args = [
-        "fastANI",
-        "-o",
-        output,
-        "-t",
-        str(threads),
-        "--rl",
-        ref_list,
-        "-q",
-        query_genome,
-    ]
-    logger.debug(f"Running fastANI with args: {' '.join(args)}")
+def sketch_genomes(genomes_fofn: str, sketch_dir: str, threads: int) -> None:
+    args = ["skani", "sketch", "-o", sketch_dir, "-t", str(threads), "-l", genomes_fofn]
+    logger.debug(f"Running skani sketch with args: {' '.join(args)}")
     proc = subprocess.run(
         args,
         stderr=subprocess.STDOUT,
@@ -269,16 +260,45 @@ def calculate_ANI(ref_list: str, query_genome: str, threads: int, output: str) -
     )
 
     if proc.returncode != 0:
-        logger.error("Error running fastANI")
+        logger.error("Error sketching genomes")
         logger.error(proc.stdout)
         sys.exit(1)
     else:
-        logger.trace(f"fastANI output:\n{proc.stdout}")
+        logger.trace(f"skani sketch output:\n{proc.stdout}")
 
 
-def argclosest(
-    array: List[Tuple[float, int, float, float, float]], value: float
-) -> Tuple[float, int, float, float, float]:
+def calculate_ANI(
+    sketch_dir: str, query_genome: str, threads: int, output: str
+) -> None:
+    args = [
+        "skani",
+        "search",
+        "-o",
+        output,
+        "-t",
+        str(threads),
+        "-d",
+        sketch_dir,
+        "-q",
+        query_genome,
+    ]
+    logger.debug(f"Running skani with args: {' '.join(args)}")
+    proc = subprocess.run(
+        args,
+        stderr=subprocess.STDOUT,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    if proc.returncode != 0:
+        logger.error("Error running skani")
+        logger.error(proc.stdout)
+        sys.exit(1)
+    else:
+        logger.trace(f"skani output:\n{proc.stdout}")
+
+
+def argclosest(array: List[Tuple[float, int]], value: float) -> Tuple[float, int]:
     """Takes a list of tuples (distance, index) and returns the index of the distance closest to the given value"""
     argmin = min(range(len(array)), key=lambda i: abs(array[i][0] - value))
     return array[argmin]
@@ -1017,19 +1037,88 @@ def fastas_match(fasta1: str, fasta2: str) -> bool:
     return True
 
 
-def fetch_genome_checkm_info(acc: str) -> float:
-    """Fetch the CheckM info of a genome from the NCBI assembly summary"""
-    url = f"https://api.ncbi.nlm.nih.gov/datasets/v2alpha/genome/accession/{acc}/dataset_report"
-    response = requests.get(url)
-    if response.status_code != 200:
-        logger.error(f"Failed to fetch genome completeness for {acc}")
-        logger.error(response.text)
-        return 0.0
+def extract_accession(s: str) -> str:
+    m = ACC_REGEX.search(s)
+    if m is None:
+        logger.error(f"Could not find accession in {s}")
+        sys.exit(1)
+    try:
+        acc = m.group("acc")
+    except IndexError:
+        logger.error(f"Could not find accession in {s}")
+        sys.exit(1)
 
-    data = response.json()
-    report = data.get("reports", [{}])[0]
+    return acc
+
+
+def fetch_checkm_info(
+    genomes: List[Path], tmpdir: Path
+) -> Dict[str, Tuple[float, float, float]]:
+    """Fetch the CheckM info for a list of genomes"""
+    accession_list = tmpdir / "accessions.txt"
+    accessions = []
+    with open(accession_list, "w") as f:
+        for genome in genomes:
+            p = str(genome)
+            acc = extract_accession(p)
+            accessions.append(acc)
+            print(acc, file=f)
+
+    args = [
+        "datasets",
+        "summary",
+        "genome",
+        "accession",
+        "--inputfile",
+        str(accession_list),
+    ]
+    logger.debug(f"Running NCBI Datasets with args: {args}")
+    proc = subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+    )
+
+    if proc.returncode != 0:
+        logger.error("Error running NCBI Datasets")
+        logger.error(proc.stderr)
+        sys.exit(1)
+
+    data = json.loads(proc.stdout)
+    accessions = set(accessions)
+    acc_with_report = set()
+    reports = data["reports"]
+    checkm_info = {}
+    for info in reports:
+        acc, completeness_percentile, completeness, contamination = (
+            extract_checkm_stats(info)
+        )
+        if acc in accessions:
+            acc_with_report.add(acc)
+        else:
+            logger.warning(f"Accession {acc} not found in the list of genomes")
+
+        checkm_info[acc] = (completeness_percentile, completeness, contamination)
+
+    missing_acc = accessions - acc_with_report
+    if missing_acc:
+        logger.error(
+            f"Could not find reports for the following accessions: {missing_acc}"
+        )
+        sys.exit(1)
+
+    return checkm_info
+
+
+def extract_checkm_stats(report: dict) -> Tuple[str, float, float, float]:
+    """Extract the CheckM info of a genome from the NCBI assembly summary report"""
     if not report:
-        logger.error(f"Failed to fetch genome report for {acc}")
+        logger.error("Empty report")
+        sys.exit(1)
+
+    acc = report.get("accession")
+    if acc is None:
+        logger.error("Accession not found in report")
         sys.exit(1)
 
     assembly_status = report.get("assembly_info", {}).get("assembly_status")
@@ -1040,14 +1129,14 @@ def fetch_genome_checkm_info(acc: str) -> float:
         logger.warning(
             f"Assembly status is suppressed for {acc}, assuming 0% completeness and 100% contamination..."
         )
-        return 0, 0, 0.0, 100.0
+        return acc, 0.0, 0.0, 100.0
 
     checkm_info = report.get("checkm_info")
     if checkm_info is None:
         logger.warning(
             f"CheckM info not found for {acc}, assuming 100% completeness and 0% contamination..."
         )
-        return 100.0, 100.0, 0.0
+        return acc, 100.0, 100.0, 0.0
     try:
         completeness_percentile = float(checkm_info["completeness_percentile"])
     except KeyError:
@@ -1063,7 +1152,7 @@ def fetch_genome_checkm_info(acc: str) -> float:
     except KeyError:
         logger.warning(f"Contamination not found for {acc}, using 0.0%")
         contamination = 0.0
-    return completeness_percentile, completeness, contamination
+    return acc, completeness_percentile, completeness, contamination
 
 
 def main():
@@ -1079,7 +1168,7 @@ def main():
         shutil.rmtree(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    dependencies = ["fastANI", "bcftools", "paftools.js"]
+    dependencies = ["skani", "bcftools", "paftools.js", "datasets"]
 
     if args.existing is None:
         dependencies.append("genome_updater.sh")
@@ -1140,75 +1229,102 @@ def main():
     genomes_files = tmpdir / "genomes.txt"
     genomes_files.write_text("\n".join([str(g) for g in genomes]))
 
-    logger.info(f"Finding genomes around ANI of {args.ani}...")
+    # fetch CheckM info for each genome
+    logger.info("Fetching CheckM info for each genome...")
+    checkm_info = fetch_checkm_info(genomes, tmpdir)
 
-    dist_mtx = outdir / "distances.tsv"
+    logger.info("Sketching genomes...")
+    sketch_dir = tmpdir / "sketches"
+    sketch_genomes(str(genomes_files), str(sketch_dir), args.threads)
+
+    logger.info(f"Calculating ANI between the genomes and {args.reference_genome}...")
+
+    dist_mtx = outdir / "ani.tsv"
     calculate_ANI(
-        str(genomes_files), args.reference_genome, str(args.threads), str(dist_mtx)
+        str(sketch_dir), args.reference_genome, str(args.threads), str(dist_mtx)
     )
+
+    # add checkm info to the ANI file
+    tmpdist = tmpdir / "ani.tsv.tmp"
+    with open(dist_mtx, "r") as f, open(tmpdist, "w") as f_out:
+        header = next(f).rstrip().split("\t")
+        header.extend(["completeness_percentile", "completeness", "contamination"])
+        # remove the Ref_name and Query_name columns
+        ref_name_ix = header.index("Ref_name")
+        query_name_ix = header.index("Query_name")
+        header.pop(ref_name_ix)
+        header.pop(query_name_ix - 1)
+        print("\t".join(header), file=f_out)
+        for line in f:
+            fields = line.rstrip().split("\t")
+            p = fields[0]
+            acc = extract_accession(p)
+            fields.pop(ref_name_ix)
+            fields.pop(query_name_ix - 1)
+            completeness_percentile, completeness, contamination = checkm_info[acc]
+            fields.extend(
+                [str(completeness_percentile), str(completeness), str(contamination)]
+            )
+            print("\t".join(fields), file=f_out)
+
+    shutil.move(tmpdist, dist_mtx)
 
     logger.info(f"You can find the full list of genomes and ANIs in {dist_mtx}")
 
     with open(dist_mtx, "r") as f:
         distances = []
-        for i, line in enumerate(f):
-            _query, ref, ani, _mappings, _fragments = line.strip().split("\t")
-            fname = Path(ref).name
-            acc = "_".join(fname.split("_", maxsplit=2)[:2])
+        header = next(f).rstrip().split("\t")
+        ani_ix = header.index("ANI")
+        completeness_ix = header.index("completeness")
+        contamination_ix = header.index("contamination")
+        completeness_percentile_ix = header.index("completeness_percentile")
 
-            ani = float(ani)
-            if args.min_ani <= ani <= args.max_ani:
-                distances.append((ani, i, acc))
+        for i, line in enumerate(f, start=1):
+            fields = line.strip().split("\t")
+            ani = float(fields[ani_ix])
+            completeness = float(fields[completeness_ix])
+            contamination = float(fields[contamination_ix])
+            completeness_percentile = float(fields[completeness_percentile_ix])
+            acc = extract_accession(fields[0])
+
+            in_ani_range = args.min_ani <= ani <= args.max_ani
+            passes_quality_check = (
+                completeness >= args.min_completeness
+                and contamination <= args.max_contamination
+                and completeness_percentile >= args.min_completeness_percentile
+            )
+
+            if not in_ani_range:
+                logger.trace(
+                    f"Genome {acc} has ANI {ani}, which is outside the range {args.min_ani} - {args.max_ani}"
+                )
+            elif not passes_quality_check:
+                logger.trace(
+                    f"Genome {acc} has completeness {completeness}%, contamination {contamination}%, and completeness percentile {completeness_percentile}%, which do not pass the quality check"
+                )
+            else:
+                distances.append((ani, i))
 
     if len(distances) == 0:
         logger.error(
-            f"No genomes found with ANI between {args.min_ani} and {args.max_ani}"
-        )
-        sys.exit(1)
-
-    dists_that_pass_quality = []
-    for ani, i, acc in distances:
-        completeness_percentile, completeness, contamination = fetch_genome_checkm_info(
-            acc
-        )
-        passes_quality_check = (
-            completeness >= args.min_completeness
-            and contamination <= args.max_contamination
-            and completeness_percentile >= args.min_completeness_percentile
-        )
-        if passes_quality_check:
-            dists_that_pass_quality.append(
-                (ani, i, completeness, contamination, completeness_percentile)
-            )
-
-    if len(dists_that_pass_quality) == 0:
-        logger.error(
-            f"No genomes found that pass the quality check: completeness >= {args.min_completeness}, contamination <= {args.max_contamination}, and completeness percentile >= {args.min_completeness_percentile}"
+            f"No genomes found that pass ANI and quality criteria: ANI in range {args.min_ani} - {args.max_ani}, completeness >= {args.min_completeness}, contamination <= {args.max_contamination}, and completeness percentile >= {args.min_completeness_percentile}"
         )
         sys.exit(1)
 
     # get the index of the line closest to ANI
-    (
-        _,
-        lineno,
-        donor_completeness,
-        donor_contamination,
-        donor_completeness_percentile,
-    ) = argclosest(dists_that_pass_quality, args.ani)
+    _, lineno = argclosest(distances, args.ani)
 
     # get the genome name from the line number
     with open(dist_mtx, "r") as f:
         donor_fields = f.readlines()[lineno].strip().split("\t")
-        donor_genome = Path(donor_fields[1]).resolve()
-        donor_ani = float(donor_fields[2])
-        donor_aln_frac = float(float(donor_fields[3]) / float(donor_fields[4]))
-
-    if donor_completeness is None:
-        logger.error(f"Could not find the genome at line {lineno} in {dist_mtx}")
-        sys.exit(1)
+        donor_genome = Path(donor_fields[0]).resolve()
+        donor_ani = float(donor_fields[ani_ix])
+        donor_completeness = float(donor_fields[completeness_ix])
+        donor_contamination = float(donor_fields[contamination_ix])
+        donor_completeness_percentile = float(donor_fields[completeness_percentile_ix])
 
     logger.success(
-        f"Using {donor_genome.name}, which has ANI {donor_ani}, alignment fraction {donor_aln_frac}, {donor_completeness}% completeness, {donor_contamination}% contamination, and {donor_completeness_percentile}% completeness percentile"
+        f"Using {donor_genome.name}, which has ANI {donor_ani}, {donor_completeness}% completeness, {donor_contamination}% contamination, and {donor_completeness_percentile}% completeness percentile"
     )
 
     # copy the genome to the output directory and decompress it if necessary
