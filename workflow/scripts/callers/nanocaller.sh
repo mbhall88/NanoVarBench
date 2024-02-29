@@ -12,6 +12,6 @@ threads="${snakemake[threads]}"
 tmpdir=$(mktemp -d)
 
 NanoCaller --sample "$sample" --prefix "$sample" --cpu "$threads" --haploid_genome \
-    --bam "$aln" --ref "$ref" --preset ont --output "$tmpdir"
+    --bam "$aln" --ref "$ref" --preset ont --output "$tmpdir" --mincov 2
 
 mv "${tmpdir}/${sample}.vcf.gz" "$finalvcf"

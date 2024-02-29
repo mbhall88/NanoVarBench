@@ -15,6 +15,9 @@ longshot -AFn \
     -f "$ref" \
     -o "$outvcf" \
     -I 50 \
+    --min_cov 2 \
+    --min_alt_count 2 \
+    -m 6 \
     -s "$sample"
 
 bcftools view -o "$finalvcf" "$outvcf"
