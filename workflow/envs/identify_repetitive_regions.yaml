@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - mummer4=4.0.0rc1
+  - bedtools=2.31

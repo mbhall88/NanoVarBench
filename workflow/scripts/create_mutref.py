@@ -35,6 +35,11 @@ ACC_REGEX = re.compile(r"(?P<acc>GC[AF]_\d+\.\d+)")
 SNP = 1
 DEL = 2
 INS = 3
+MM2_PRESETS = {
+    0.1: "asm5",
+    1.0: "asm10",
+    5.0: "asm20",
+}
 
 var_types = {
     1: "SNP",
@@ -310,10 +315,14 @@ def is_file_gzipped(file: str) -> bool:
 
 
 def generate_minimap2_variants(
-    reference_genome: str, donor_genome: str, vcf: str, threads: int
+    reference_genome: str,
+    donor_genome: str,
+    vcf: str,
+    threads: int,
+    preset: str = "asm5",
 ) -> None:
     cmd = (
-        f"minimap2 -x asm5 -c --cs {reference_genome} {donor_genome} |"
+        f"minimap2 -t {threads} -x {preset} -c --cs --secondary=no {reference_genome} {donor_genome} |"
         "sort -k6,6 -k8,8n |"
         f"paftools.js call -f {reference_genome} -l50 -L50 - |"
         f"bcftools sort -o {vcf} --write-index -"
@@ -1155,6 +1164,51 @@ def extract_checkm_stats(report: dict) -> Tuple[str, float, float, float]:
     return acc, completeness_percentile, completeness, contamination
 
 
+def intersect_vcfs(vcf1: str, vcf2: str, output: str, tmpdir: Path) -> None:
+    args = [
+        "bcftools",
+        "isec",
+        "-c",
+        "none",
+        "-p",
+        str(tmpdir),
+        vcf1,
+        vcf2,
+    ]
+    logger.debug(f"Running bcftools isec with args: {args}")
+    proc = subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+    )
+
+    if proc.returncode != 0:
+        logger.error("Error running bcftools isec")
+        logger.error(proc.stderr)
+        sys.exit(1)
+
+    isec_vcf = tmpdir / "0002.vcf"
+    args = [
+        "bcftools",
+        "view",
+        "-o",
+        output,
+        "--write-index",
+        isec_vcf,
+    ]
+    logger.debug(f"Running bcftools view with args: {args}")
+    proc = subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+    )
+
+    if proc.returncode != 0:
+        logger.error("Error running bcftools view")
+        logger.error(proc.stderr)
+        sys.exit(1)
+
+
 def main():
     args = parse_args()
     setup_logging(args.verbose, args.quiet)
@@ -1353,26 +1407,56 @@ def main():
 
     logger.info(f"Generating variants between {reference_genome} and {mutdonor}...")
 
-    mm2_vcf = outdir / "minimap2.vcf.gz"
+    raw_mm2_vcf = tmpdir / "minimap2.vcf.gz"
+    arr = [(k, i) for i, k in enumerate(MM2_PRESETS)]
+    v = 100 - donor_ani
+    preset = MM2_PRESETS[argclosest(arr, v)[0]]
     generate_minimap2_variants(
-        str(reference_genome), str(mutdonor), str(mm2_vcf), args.threads
+        str(reference_genome), str(mutdonor), str(raw_mm2_vcf), args.threads, preset
+    )
+
+    mm2_vcf = outdir / "minimap2.vcf.gz"
+    merge_and_filter_variants(
+        tmpdir,
+        [str(raw_mm2_vcf)],
+        str(reference_genome),
+        str(mm2_vcf),
+        args.max_indel,
+        args.remove_overlaps,
     )
 
     logger.debug(f"Minimap2 variants saved to {mm2_vcf}")
 
-    dnadiff_vcf = outdir / "dnadiff.vcf.gz"
+    raw_dnadiff_vcf = tmpdir / "dnadiff.vcf.gz"
     generate_dnadiff_variants(
-        tmpdir, str(reference_genome), str(mutdonor), str(dnadiff_vcf), args.threads
+        tmpdir,
+        str(reference_genome),
+        str(mutdonor),
+        str(raw_dnadiff_vcf),
+        args.threads,
+    )
+
+    dnadiff_vcf = outdir / "dnadiff.vcf.gz"
+    merge_and_filter_variants(
+        tmpdir,
+        [str(raw_dnadiff_vcf)],
+        str(reference_genome),
+        str(dnadiff_vcf),
+        args.max_indel,
+        args.remove_overlaps,
     )
 
     logger.debug(f"DNAdiff variants saved to {dnadiff_vcf}")
 
     logger.info("Merging, normalising, and filtering variants...")
 
+    isec_vcf = tmpdir / "isec.vcf.gz"
+    intersect_vcfs(str(mm2_vcf), str(dnadiff_vcf), str(isec_vcf), tmpdir)
+
     apply_vcf = outdir / "apply.vcf.gz"
     merge_and_filter_variants(
         tmpdir,
-        [str(mm2_vcf), str(dnadiff_vcf)],
+        [str(isec_vcf)],
         str(reference_genome),
         str(apply_vcf),
         args.max_indel,

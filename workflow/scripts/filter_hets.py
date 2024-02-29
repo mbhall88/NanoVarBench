@@ -15,16 +15,16 @@ def main(args):
         if v_type == 1:  # HET
             use_ref = True
             allelic_counts = variant.INFO.get("AC")
-            if allelic_counts is not None:
-                ref_count = allelic_counts[0]
-                alt_count = allelic_counts[1]
-                if alt_count > ref_count:
-                    use_ref = False
-            elif "AD" in variant.FORMAT:
+            if "AD" in variant.FORMAT:
                 allele_depths = variant.format("AD")[0]
                 ref_depth = allele_depths[0]
                 alt_depth = allele_depths[1]
                 if alt_depth > ref_depth:
+                    use_ref = False
+            elif allelic_counts is not None:
+                ref_count = allelic_counts[0]
+                alt_count = allelic_counts[1]
+                if alt_count > ref_count:
                     use_ref = False
             else:
                 raise KeyError(f"Could not find allele counts for variant {variant}")

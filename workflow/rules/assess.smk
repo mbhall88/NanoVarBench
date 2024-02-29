@@ -134,6 +134,7 @@ rule assess_mutref_calls:
         truth_vcf=rules.create_mutref.output.truth_vcf,
         mutref=rules.create_mutref.output.mutref,
         faidx=rules.faidx_mutref.output.faidx,
+        bed=rules.make_full_bed.output.bed,
     output:
         pr_summary=RESULTS
         / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall-summary.tsv",
@@ -166,13 +167,9 @@ rule assess_mutref_calls:
         echo "Calculated maximum QUAL score..." 1>&2
         MAX_QUAL=$(bgzip -dc {input.query_vcf} | grep -v '^#' | cut -f 6 | sort -gr | sed -n '1p')
         echo "MAX_QUAL=$MAX_QUAL" 1>&2
-        tmpbed=$(mktemp -u).bed
-        echo "Writing BED file that covers the whole reference..." 1>&2
-        awk '{{print $1"\t"0"\t"$2}}' {input.faidx} > $tmpbed
-        cat $tmpbed 1>&2
         echo "Running vcfdist..." 1>&2
         vcfdist {input.query_vcf} {input.truth_vcf} {input.mutref} {params.opts} \
-            -p {params.prefix}. -b "$tmpbed" -mx $MAX_QUAL
+            -p {params.prefix}. -b {input.bed} -mx $MAX_QUAL
         """
 
 
@@ -182,6 +179,7 @@ use rule assess_mutref_calls as assess_mutref_calls_illumina with:
         truth_vcf=rules.create_mutref.output.truth_vcf,
         mutref=rules.create_mutref.output.mutref,
         faidx=rules.faidx_mutref.output.faidx,
+        bed=rules.make_full_bed.output.bed,
     output:
         pr_summary=RESULTS
         / "assess/mutref/illumina/{sample}/{sample}.precision-recall-summary.tsv",
@@ -194,3 +192,75 @@ use rule assess_mutref_calls as assess_mutref_calls_illumina with:
         dist=RESULTS / "assess/mutref/illumina/{sample}/{sample}.distance.tsv",
     log:
         LOGS / "assess_mutref_calls_illumina/{sample}.log",
+
+
+rule assess_mutref_calls_without_repetitive_regions:
+    input:
+        query_vcf=RESULTS
+        / "call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz",
+        truth_vcf=rules.create_mutref.output.truth_vcf,
+        mutref=rules.create_mutref.output.mutref,
+        faidx=rules.faidx_mutref.output.faidx,
+        bed=rules.identify_repetitive_regions.output.unique_bed,
+    output:
+        pr_summary=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall-summary.tsv",
+        pr=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv",
+        summary=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.summary.vcf",
+        query=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.query.tsv",
+        truth=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.truth.tsv",
+        dist_summary=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.distance-summary.tsv",
+        dist=RESULTS
+        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.distance.tsv",
+    log:
+        LOGS
+        / "assess_mutref_calls_without_repetitive_regions/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
+    resources:
+        runtime="5m",
+        mem_mb=500,
+    container:
+        "docker://timd1/vcfdist:v2.3.3"
+    params:
+        opts=f"--largest-variant {config['truth']['max_indel']} --credit-threshold 1.0 -d",
+        prefix=lambda wildcards, output: Path(output.pr).with_suffix("").with_suffix(""),
+    shell:
+        """
+        exec 2> {log}
+        echo "Calculated maximum QUAL score..." 1>&2
+        MAX_QUAL=$(bgzip -dc {input.query_vcf} | grep -v '^#' | cut -f 6 | sort -gr | sed -n '1p')
+        echo "MAX_QUAL=$MAX_QUAL" 1>&2
+        echo "Running vcfdist..." 1>&2
+        vcfdist {input.query_vcf} {input.truth_vcf} {input.mutref} {params.opts} \
+            -p {params.prefix}. -b {input.bed} -mx $MAX_QUAL
+        """
+
+
+use rule assess_mutref_calls_without_repetitive_regions as assess_mutref_calls_illumina_without_repetitive_regions with:
+    input:
+        query_vcf=RESULTS / "call/mutref/illumina/{sample}/{sample}.filter.vcf.gz",
+        truth_vcf=rules.create_mutref.output.truth_vcf,
+        mutref=rules.create_mutref.output.mutref,
+        faidx=rules.faidx_mutref.output.faidx,
+        bed=rules.identify_repetitive_regions.output.unique_bed,
+    output:
+        pr_summary=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.precision-recall-summary.tsv",
+        pr=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv",
+        summary=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.summary.vcf",
+        query=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.query.tsv",
+        truth=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.truth.tsv",
+        dist_summary=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.distance-summary.tsv",
+        dist=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.distance.tsv",
+    log:
+        LOGS / "assess_mutref_calls_illumina_without_repetitive_regions/{sample}.log",

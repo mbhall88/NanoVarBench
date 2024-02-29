@@ -1,6 +1,7 @@
 truth_config = config["truth"]
 
- # the create_mutref script can do this download, but doing it manually means troubleshooting is faster
+
+# the create_mutref script can do this download, but doing it manually means troubleshooting is faster
 rule download_genomes:
     output:
         outdir=directory(RESULTS / "truth/genomes/{sample}/"),
@@ -18,7 +19,7 @@ rule download_genomes:
         taxid=infer_taxid,
         max_asm=truth_config["max_assemblies"],
         taxonomy="ncbi",
-        opts="-d refseq -g bacteria -f genomic.fna.gz -m -a"
+        opts="-d refseq -g bacteria -f genomic.fna.gz -m -a",
     shell:
         """
         genome_updater.sh {params.opts} -o {output.outdir} -M {params.taxonomy} \
@@ -39,8 +40,8 @@ rule create_mutref:
     log:
         LOGS / "create_mutref/{sample}.log",
     resources:
-        mem_mb=lambda wildcards, attempt: 32 * GB * attempt,
-        runtime="2h",
+        mem_mb=lambda wildcards, attempt: 4 * GB * attempt,
+        runtime="1h",
     threads: 8
     conda:
         ENVS / "create_mutref.yaml"
@@ -50,9 +51,9 @@ rule create_mutref:
         max_ani=truth_config["max_ANI"],
         min_ani=truth_config["min_ANI"],
         max_asm=truth_config["max_assemblies"],
-        max_contam=truth_config["max_contamination"],
-        min_completeness=truth_config["min_completeness"],
-        min_comp_perc=truth_config["min_completeness_percentile"],
+        max_contam=get_max_contamination,
+        min_completeness=get_min_completeness,
+        min_comp_perc=get_min_completeness_percentile,
         outdir=lambda wildcards, output: Path(output.mutref).parent,
         max_indel=truth_config["max_indel"],
         asm_lvl='""',
@@ -147,4 +148,61 @@ rule plot_synteny:
             -o {params.outdir} \
             --ref {input.reference} \
             --donor {input.donor} 2> {log}
+        """
+
+
+rule make_full_bed:
+    input:
+        faidx=rules.faidx_mutref.output.faidx,
+    output:
+        bed=RESULTS / "truth/{sample}/{sample}.bed",
+    log:
+        LOGS / "make_full_bed/{sample}.log",
+    resources:
+        mem_mb=500,
+        runtime="1m",
+    shell:
+        """
+        awk '{{print $1"\t"0"\t"$2}}' {input.faidx} | sort -k1,1 -k2,2n > {output.bed} 2> {log}
+        """
+
+
+rule identify_repetitive_regions:
+    input:
+        reference=rules.create_mutref.output.mutref,
+        faidx=rules.faidx_mutref.output.faidx,
+    output:
+        repetitive_bed=RESULTS / "truth/{sample}/{sample}.repetitive_regions.bed",
+        unique_bed=RESULTS / "truth/{sample}/{sample}.unique_regions.bed",
+    log:
+        LOGS / "identify_repetitive_regions/{sample}.log",
+    resources:
+        mem_mb=500,
+        runtime="5m",
+    threads: 2
+    conda:
+        ENVS / "identify_repetitive_regions.yaml"
+    shadow:
+        "shallow"
+    params:
+        min_exact_match=20,
+        min_aln_identity=60,
+    shell:
+        """
+        exec 2>{log}
+        delta=$(mktemp -u).delta
+        nucmer --maxmatch --nosimplify --delta "$delta" \
+            -l {params.min_exact_match} {input.reference} {input.reference}
+        show-coords -rTH -I {params.min_aln_identity} "$delta" | 
+            awk '{{if ($1 != $3 && $2 != $4) print $0}}' | 
+            awk '{{print $8"\t"$1"\t"$2}}' |
+            sort -k1,1 -k2,2n |
+            bedtools merge -i - > {output.repetitive_bed}
+        total_bases=$(grep -v '^>' {input.reference} | tr -d '\n' | wc -c)
+        total_repeats=$(awk '{{sum+=$3-$2}} END {{print sum}}' {output.repetitive_bed})
+        echo "Total bases: $total_bases" >> {log}
+        echo "Total repeats: $total_repeats" >> {log}
+        perc_repeats=$(printf %.2f $(echo "$total_repeats / $total_bases * 100" | bc -l))
+        echo "Percentage of genome that is repetitive: $perc_repeats%" >> {log}
+        bedtools complement -i {output.repetitive_bed} -g {input.faidx} > {output.unique_bed}
         """

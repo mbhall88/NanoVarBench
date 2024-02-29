@@ -32,13 +32,13 @@ rule call_self_illumina:
         """
 
 
-use rule call_self_illumina as call_mutref_illumina with:
+rule call_mutref_illumina:
     input:
         r1=rules.preprocess_illumina.output.r1,
         r2=rules.preprocess_illumina.output.r2,
         reference=rules.faidx_mutref.input.reference,
     output:
-        vcf=RESULTS / "call/mutref/illumina/{sample}/{sample}.vcf.gz",
+        vcf=RESULTS / "call/mutref/illumina/{sample}/{sample}.raw.vcf.gz",
         alignment=RESULTS / "call/mutref/illumina/{sample}/{sample}.bam",
     log:
         LOGS / "call_mutref_illumina/{sample}.log",
@@ -47,7 +47,23 @@ use rule call_self_illumina as call_mutref_illumina with:
             BENCH / "call_mutref_illumina/{sample}.tsv",
             REPEAT,
         )
-
+    threads: 4
+    resources:
+        mem_mb=12 * GB,
+        runtime="4h",
+    params:
+        opts="--force --prefix {sample} --mapqual 0 --mincov 2 --minqual 0",
+        outdir=lambda wildcards, output: Path(output.vcf).parent,
+        raw_vcf=lambda wildcards, output: Path(output.vcf).with_suffix(""),
+    container:
+        "docker://quay.io/biocontainers/snippy:4.6.0--hdfd78af_3"
+    shell:
+        """
+        snippy {params.opts} --cpus {threads} --reference {input.reference} \
+            --R1 {input.r1} --R2 {input.r2} --outdir {params.outdir} 2> {log}
+        bcftools view -o {output.vcf} {params.raw_vcf} 2>> {log}
+        bcftools index -f {output.vcf} 2>> {log}
+        """
 
 caller = "bcftools"
 
@@ -402,7 +418,7 @@ rule filter_variants:
 
 use rule filter_variants as filter_variants_illumina with:
     input:
-        vcf=RESULTS / "call/{ref}/illumina/{sample}/{sample}.vcf.gz",
+        vcf=infer_illumina_vcf_to_filter,
         reference=infer_vcf_reference,
         faidx=infer_vcf_reference_faidx,
         filter_script=SCRIPTS / "filter_hets.py",

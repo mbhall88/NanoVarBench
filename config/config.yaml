@@ -35,9 +35,16 @@ truth:
   # The maximum allowed (CheckM) contamination of the donor
   max_contamination: 5
   # The minimum allowed (CheckM) completeness of the donor
-  min_completeness: 96
+  min_completeness: 98.0
   # The minimum allowed (CheckM) completeness percentile of the donor
   min_completeness_percentile: 2.0
+
+sample_specific_truth:
+  ATCC_19119__202309:
+    min_completeness: 96
+  AMtb_1__202402:
+    min_completeness: 96
+    min_completeness_percentile: 50.0
 
 # number of times to repeat running the variant calling rules. This is intended for
 # benchmarking purposes only, and should be set to 1 for normal use.
