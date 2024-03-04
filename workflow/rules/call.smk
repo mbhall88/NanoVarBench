@@ -406,7 +406,8 @@ rule filter_variants:
 
         (bcftools reheader -h "$header" {input.vcf} |                       # replace VCF header with new header containing all contigs
             python {input.filter_script} |                                  # make heterozygous calls homozygous for allele with most depth
-            bcftools view -i 'GT="alt"' |                                   # remove non-alt alleles
+            bcftools view -i 'GT="alt"' |                                   # remove non-alt alleles 
+            bcftools view -e 'ALT="."' |                                    # remove sites with no alt allele (NanoCaller bug)
             bcftools norm -f {input.reference} -a -c e -m - |               # normalise and left-align indels
             bcftools norm -aD |                                             # remove duplicates after normalisation
             bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles

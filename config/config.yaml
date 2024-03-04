@@ -17,6 +17,7 @@ QC:
     - 50
     - 25
     - 10
+    - 5
 
 # Nanopore sequencing mode - i.e., simplex, duplex
 mode:
