@@ -60,7 +60,7 @@ def plot(
     yticklabels: list[str],
     hue_order: list[str],
 ):
-    data = df.query(f"VAR_TYPE == '{vartype}' and caller != 'longshot'")
+    data = df.query(f"VAR_TYPE == '{vartype}'")
     palette = cud(n=len(data[hue].unique()))
     # palette = "colorblind"
     row_order = ["F1 Score", "Recall", "Precision"]
@@ -387,6 +387,7 @@ def main():
         yticklabels=yticklabels,
         hue_order=hue_order,
     )
+    indel_fig.savefig(snakemake.output.indel_fig)
 
 
 if __name__ == "__main__":
