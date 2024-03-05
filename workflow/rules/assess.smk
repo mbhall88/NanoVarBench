@@ -264,3 +264,25 @@ use rule assess_mutref_calls_without_repetitive_regions as assess_mutref_calls_i
         / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.distance.tsv",
     log:
         LOGS / "assess_mutref_calls_illumina_without_repetitive_regions/{sample}.log",
+
+
+rule depth_plots:
+    input:
+        postfilter_stats=expand(RESULTS / "QC/stats/postfilter/{mode}/{version}/{model}.csv", mode=MODES, version=VERSIONS, model=MODELS),
+        ont_pr=expand(RESULTS / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv", caller=CALLERS, depth=DEPTHS, mode=MODES, version=VERSIONS, model=MODELS, sample=SAMPLES),
+        illumina_pr=expand(RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv", sample=SAMPLES),
+    output:
+        snp_fig=FIGURES / "depth_plots.snp.pdf",
+        indel_fig=FIGURES / "depth_plots.indel.pdf",
+    log:
+        LOGS / "depth_plots.log",
+    resources:
+        runtime="10m",
+        mem_mb=4 * GB,
+    params:
+        duplex_depth_cap=50,
+        no_indels=config.get("no_indels", []),
+    conda:
+        ENVS / "depth_plots.yaml"
+    script:
+        SCRIPTS / "depth_plots.py"
