@@ -268,9 +268,26 @@ use rule assess_mutref_calls_without_repetitive_regions as assess_mutref_calls_i
 
 rule depth_plots:
     input:
-        postfilter_stats=expand(RESULTS / "QC/stats/postfilter/{mode}/{version}/{model}.csv", mode=MODES, version=VERSIONS, model=MODELS),
-        ont_pr=expand(RESULTS / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv", caller=CALLERS, depth=DEPTHS, mode=MODES, version=VERSIONS, model=MODELS, sample=SAMPLES),
-        illumina_pr=expand(RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv", sample=SAMPLES),
+        postfilter_stats=expand(
+            RESULTS / "QC/stats/postfilter/{mode}/{version}/{model}.csv",
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+        ),
+        ont_pr=expand(
+            RESULTS
+            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv",
+            caller=CALLERS,
+            depth=DEPTHS,
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+            sample=SAMPLES,
+        ),
+        illumina_pr=expand(
+            RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv",
+            sample=SAMPLES,
+        ),
     output:
         snp_fig=FIGURES / "depth_plots.snp.pdf",
         indel_fig=FIGURES / "depth_plots.indel.pdf",
@@ -286,3 +303,89 @@ rule depth_plots:
         ENVS / "depth_plots.yaml"
     script:
         SCRIPTS / "depth_plots.py"
+
+
+rule precision_recall_curve:
+    input:
+        pr=expand(
+            RESULTS
+            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{{model}}/{sample}/{sample}.precision-recall.tsv",
+            caller=CALLERS,
+            depth=[MAX_DEPTH],
+            mode=MODES,
+            version=VERSIONS,
+            sample=SAMPLES,
+        ),
+        illumina_pr=expand(
+            RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv",
+            sample=SAMPLES,
+        ),
+    output:
+        pdf=FIGURES / "precision_recall_curve.{model}.pdf",
+    log:
+        LOGS / "precision_recall_curve/{model}.log",
+    resources:
+        runtime="30m",
+        mem_mb=8 * GB,
+    conda:
+        ENVS / "precision_recall_curve.yaml"
+    params:
+        no_indels=config.get("no_indels", []),
+    script:
+        SCRIPTS / "precision_recall_curve.py"
+
+
+rule best_f1:
+    input:
+        pr=expand(
+            RESULTS
+            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv",
+            caller=CALLERS,
+            depth=[MAX_DEPTH],
+            mode=MODES,
+            version=VERSIONS,
+            sample=SAMPLES,
+            model=MODELS,
+        ),
+        illumina_pr=expand(
+            RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv",
+            sample=SAMPLES,
+        ),
+    output:
+        figures=[
+            FIGURES / f"best_f1_plots/{metric}.pdf"
+            for metric in ["f1", "recall", "precision"]
+        ],
+    log:
+        LOGS / "best_f1.log",
+    resources:
+        runtime="30m",
+        mem_mb=8 * GB,
+    conda:
+        ENVS / "precision_recall_curve.yaml"
+    params:
+        no_indels=config.get("no_indels", []),
+    script:
+        SCRIPTS / "best_f1.py"
+
+
+rule read_summary:
+    input:
+        csvs=expand(
+            RESULTS / "QC/stats/prefilter/{mode}/{version}/{model}.csv",
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+        ),
+    output:
+        csv=TABLES / "read_summary.csv",
+        pdf=FIGURES / "read_identity.pdf",
+    log:
+        LOGS / "read_summary.log",
+    resources:
+        runtime="5m",
+        mem_mb=500,
+    conda:
+        ENVS / "precision_recall_curve.yaml"
+    script:
+        SCRIPTS / "identity_plot.py"

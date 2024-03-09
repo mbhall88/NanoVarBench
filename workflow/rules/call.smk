@@ -65,6 +65,7 @@ rule call_mutref_illumina:
         bcftools index -f {output.vcf} 2>> {log}
         """
 
+
 caller = "bcftools"
 
 

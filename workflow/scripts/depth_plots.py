@@ -59,10 +59,10 @@ def plot(
     yticks: list[str],
     yticklabels: list[str],
     hue_order: list[str],
+    palette: dict[str, str],
 ):
     data = df.query(f"VAR_TYPE == '{vartype}'")
-    palette = cud(n=len(data[hue].unique()))
-    # palette = "colorblind"
+
     row_order = ["F1 Score", "Recall", "Precision"]
     ncols = len(data.query("mode == 'simplex'")[col].unique()) + len(
         data.query("mode == 'duplex'")[col].unique()
@@ -347,6 +347,16 @@ def main():
     }
 
     hue_order = sorted(pr_df["caller"].unique())
+    # remove illumina
+    if "illumina" in hue_order:
+        hue_order.remove("illumina")
+    # hue_order.append("illumina")
+    # map each caller in hue order to a colour in cud
+    pal = {c: cud()[i] for i, c in enumerate(hue_order)}
+    # move no indel callers to end
+    # for caller in NO_INDELS:
+    #     hue_order.remove(caller)
+    #     hue_order.append(caller)
 
     cap = CAP
     yticks = [0.01, 0.1, 0.25, 0.5, 0.9, 0.99, 0.999, 0.9999, cap]
@@ -365,15 +375,15 @@ def main():
         yticks=yticks,
         yticklabels=yticklabels,
         hue_order=hue_order,
+        palette=pal,
     )
     snp_fig.savefig(snakemake.output.snp_fig)
 
-    # move no indel callers to end
+    vartype = "INDEL"
+
     for caller in NO_INDELS:
         hue_order.remove(caller)
-        hue_order.append(caller)
 
-    vartype = "INDEL"
     indel_fig = plot(
         vartype=vartype,
         df=best_df.query("caller not in @NO_INDELS"),
@@ -386,6 +396,7 @@ def main():
         yticks=yticks,
         yticklabels=yticklabels,
         hue_order=hue_order,
+        palette=pal,
     )
     indel_fig.savefig(snakemake.output.indel_fig)
 
