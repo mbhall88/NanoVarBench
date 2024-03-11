@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from matplotlib.colors import to_rgba
 
 # colourblind-friendly palette from colour universal design (CUD)
 # https://jfly.uni-koeln.de/color/
@@ -32,16 +33,21 @@ def cud(n: int = len(cud_palette), start: int = 0) -> list[str]:
 
 
 gsize = {}
-for p in Path("../results/truth").rglob("*.fai"):
+for p in map(Path, snakemake.input.faidx):
     sample = p.parts[-2]
     size = sum(int(l.split("\t")[1]) for l in p.read_text().splitlines())
     gsize[sample] = size
+
 frames = []
-for p in Path("../results/benchmark/call/mutref").rglob("*.tsv"):
+for p in map(Path, snakemake.input.benchmark):
     df = pd.read_csv(p, sep="\t")
     sample = p.stem
     model = p.parts[-2].split("_")[-1].split("@")[0]
     mode = p.parts[-4]
+
+    if model == "fast" and mode == "duplex":
+        continue
+
     dp = int(p.parts[-5][:-1])
     bp = dp * gsize[sample]
     caller = p.parts[-6]
@@ -53,24 +59,24 @@ for p in Path("../results/benchmark/call/mutref").rglob("*.tsv"):
     df["bp"] = bp
     # use rate which is sec/Mbp
     df["rate"] = df["cpu_time"] / df["bp"] * 1e6
-
     frames.append(df)
+
 df = pd.concat(frames)
-df.head()
+
 y = "caller"
 hue = y
 order = sorted(df[hue].unique())
-# move longshot to the end
-order.remove("longshot")
-order.append("longshot")
-palette = cud(n=len(df[hue].unique()))
-fig, axes = plt.subplots(nrows=2, figsize=(10, 10), dpi=300, sharey=True)
+pal = {c: cud()[i] for i, c in enumerate(order)}
+palette = sorted(pal)
+
+fig, axes = plt.subplots(nrows=2, figsize=(7, 5), dpi=300, sharey=True)
 
 # plot memory
 x = "max_rss"
 mem_ax = axes[0]
-violin_alpha = 0.2
-strip_alpha = 0.2
+violin_alpha = 0.15
+strip_alpha = 0.15
+jitter = 0.2
 orient = "h"
 
 kwargs = dict(
@@ -84,13 +90,13 @@ kwargs = dict(
     orient=orient,
     dodge=False,
 )
-# sns.violinplot(**kwargs, cut=0, inner="quartile", ax=mem_ax)
-sns.boxenplot(**kwargs, ax=mem_ax, fill=None, showfliers=False)
-# for violin in mem_ax.collections:
-# violin.set_facecolor(to_rgba(violin.get_facecolor(), alpha=violin_alpha))
+
+sns.violinplot(**kwargs, cut=0, inner="quartile", ax=mem_ax)
+for violin in mem_ax.collections:
+    violin.set_facecolor(to_rgba(violin.get_facecolor(), alpha=violin_alpha))
 
 sns.stripplot(
-    **kwargs, alpha=strip_alpha, edgecolor="gray", linewidth=0.5, ax=mem_ax, jitter=0.2
+    **kwargs, alpha=strip_alpha, edgecolor="auto", linewidth=0, ax=mem_ax, jitter=jitter
 )
 mem_ax.set_xscale("log")
 ticks = [
@@ -98,7 +104,6 @@ ticks = [
     (500, "500MB"),
     (1000, "1GB"),
     (2000, "2GB"),
-    # (3000, "3GB"),
     (4000, "4GB"),
     (8000, "8GB"),
 ]
@@ -114,12 +119,13 @@ x = "rate"
 rt_ax = axes[1]
 kwargs["x"] = x
 
-sns.boxenplot(**kwargs, ax=rt_ax, fill=None, showfliers=False)
-# sns.violinplot(**kwargs, cut=0, inner="quartile", ax=rt_ax)
-# for violin in rt_ax.collections:
-#     violin.set_facecolor(to_rgba(violin.get_facecolor(), alpha=violin_alpha))
+sns.violinplot(**kwargs, cut=0, inner="quartile", ax=rt_ax)
+for violin in rt_ax.collections:
+    violin.set_facecolor(to_rgba(violin.get_facecolor(), alpha=violin_alpha))
 
-sns.stripplot(**kwargs, alpha=strip_alpha, edgecolor="gray", linewidth=1, ax=rt_ax)
+sns.stripplot(
+    **kwargs, alpha=strip_alpha, edgecolor="auto", linewidth=0, ax=rt_ax, jitter=jitter
+)
 
 rt_ax.set_xscale("log")
 ticks = [
@@ -134,5 +140,8 @@ rt_ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
 rt_ax.set_xlabel("CPU time", fontsize=FS)
 rt_ax.set_ylabel("")
 rt_ax.tick_params(axis="both", which="major", labelsize=FS)
-rt_ax.set_ylabel("")
-rt_ax.tick_params(axis="both", which="major", labelsize=FS)
+
+fig.tight_layout()
+
+fig.savefig(snakemake.output.png)
+df.to_csv(snakemake.output.csv, index=False)

@@ -73,6 +73,7 @@ for model in MODELS:
 target_files.add(TABLES / "mutref_summary.csv")
 target_files.add(FIGURES / "assess/self/self_fpr.snps.png")
 target_files.add(FIGURES / "read_identity.pdf")
+target_files.add(FIGURES / "benchmark_resources.pdf")
 target_files.add(RESULTS / "assess/self/self_calls.json")
 target_files.add(FIGURES / "depth_plots.snp.pdf")
 for p in [

@@ -389,3 +389,30 @@ rule read_summary:
         ENVS / "precision_recall_curve.yaml"
     script:
         SCRIPTS / "identity_plot.py"
+
+
+rule benchmark_resources:
+    input:
+        faidx=expand(RESULTS / "truth/{sample}/mutreference.fna.fai", sample=SAMPLES),
+        benchmark=expand(
+            BENCH
+            / "call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.tsv",
+            caller=CALLERS,
+            depth=DEPTHS,
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+            sample=SAMPLES,
+        ),
+    output:
+        pdf=FIGURES / "benchmark_resources.pdf",
+        csv=TABLES / "benchmark_resources.csv",
+    log:
+        LOGS / "benchmark_resources.log",
+    resources:
+        runtime="5m",
+        mem_mb=500,
+    conda:
+        ENVS / "precision_recall_curve.yaml"
+    script:
+        SCRIPTS / "benchmark_plot.py"
