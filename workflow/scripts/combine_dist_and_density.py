@@ -32,7 +32,8 @@ def main():
 
     with open(snakemake.output.csv, "w") as f:
         print(
-            "sample,caller,mode,model,chrom,pos,ref,alt,decision,dist,density", file=f
+            "sample,caller,mode,model,chrom,pos,ref,alt,decision,dist,density,vartype",
+            file=f,
         )
         for path in map(Path, vcfs):
             vcf = cyvcf2.VCF(str(path))
@@ -59,6 +60,13 @@ def main():
                     print(path, file=sys.stderr)
                     raise ValueError("No DEN field found in the record")
 
+                if record.is_indel:
+                    vtype = "INDEL"
+                elif record.is_snp:
+                    vtype = "SNP"
+                else:
+                    raise ValueError(f"Unknown variant type {record}")
+
                 print(
                     ",".join(
                         map(
@@ -75,6 +83,7 @@ def main():
                                 decision,
                                 dist,
                                 density,
+                                vtype,
                             ],
                         )
                     ),
