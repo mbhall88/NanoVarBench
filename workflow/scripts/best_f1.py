@@ -80,7 +80,7 @@ for p in map(Path, tsvs):
         frames.append(df2)
 
 pr_df = pd.concat(frames)
-pr_df.reset_index(inplace=True)
+pr_df.reset_index(inplace=True, drop=True)
 
 metrics = ["F1_SCORE", "PREC", "RECALL"]
 x = "caller"
@@ -193,3 +193,24 @@ for y in metrics:
 
     fig.tight_layout()
     fig.savefig(output[y])
+
+dataix = pr_df.groupby([x, hue, cols, "VAR_TYPE", "sample"])["F1_SCORE"].idxmax()
+data = pr_df.iloc[dataix]
+data = data.query(
+    "VAR_TYPE not in ('ALL', 'SV') and not (mode == 'duplex' and model == 'fast')"
+)
+# make the mode and model columns the first and second columns
+col = data.pop("model")
+data.insert(0, col.name, col)
+col = data.pop("mode")
+data.insert(0, col.name, col)
+col = data.pop("sample")
+data.insert(0, col.name, col)
+col = data.pop("caller")
+data.insert(0, col.name, col)
+data.sort_values(
+    by=["mode", "model", "sample", "caller"],
+    ascending=[False, True, True, True],
+    inplace=True,
+)
+data.to_csv(snakemake.output.csv, index=False)

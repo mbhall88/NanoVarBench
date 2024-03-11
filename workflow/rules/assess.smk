@@ -356,6 +356,7 @@ rule best_f1:
             FIGURES / f"best_f1_plots/{metric}.pdf"
             for metric in ["f1", "recall", "precision"]
         ],
+        csv=TABLES / "best_f1.csv",
     log:
         LOGS / "best_f1.log",
     resources:

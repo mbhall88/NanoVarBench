@@ -118,7 +118,7 @@ ticks = [
 FS = 12
 mem_ax.set_xticks([t[0] for t in ticks])
 mem_ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
-mem_ax.set_xlabel("Max. RAM usage", fontsize=FS)
+mem_ax.set_xlabel("Maximum memory usage", fontsize=FS)
 mem_ax.set_ylabel("")
 mem_ax.tick_params(axis="both", which="major", labelsize=FS)
 
