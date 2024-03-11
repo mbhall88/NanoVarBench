@@ -414,7 +414,8 @@ rule filter_variants:
             bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles
             bcftools +setGT - -- -t a -n c:M |                              # make genotypes haploid e.g., 1/1 -> 1
             bcftools sort |                                                 # sort VCF
-            bcftools view -i 'GT="A"' -o {output.vcf} --write-index)        # remove non-alt alleles and write index
+            bcftools view -i 'GT="A"' -o {output.vcf})                      # remove non-alt alleles and write index
+        bcftools index -f {output.vcf}
         """
 
 

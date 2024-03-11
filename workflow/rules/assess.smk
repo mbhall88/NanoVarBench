@@ -194,6 +194,94 @@ use rule assess_mutref_calls as assess_mutref_calls_illumina with:
         LOGS / "assess_mutref_calls_illumina/{sample}.log",
 
 
+rule annotate_dist_to_repeats_and_density:
+    input:
+        vcf=RESULTS
+        / "assess/mutref/{caller}/100x/{mode}/{version}/{model}/{sample}/{sample}.summary.vcf",
+        repeats=RESULTS / "truth/{sample}/{sample}.repetitive_regions.bed",
+        script=SCRIPTS / "variant_density.py",
+    output:
+        vcf=RESULTS
+        / "assess/mutref/{caller}/100x/{mode}/{version}/{model}/{sample}/{sample}.summary.annotated.vcf.gz",
+    log:
+        LOGS
+        / "annotate_dist_to_repeats_and_density/mutref/{caller}/{mode}/{version}/{model}/{sample}.log",
+    resources:
+        mem_mb=int(0.5 * GB),
+        runtime="3m",
+    params:
+        window=100,  # window size for density calculation
+    conda:
+        ENVS / "annotate.yaml"
+    shell:
+        """
+        exec 2> {log}
+        tmpinvcf=$(mktemp -u).vcf.gz
+        bcftools view -o $tmpinvcf {input.vcf}
+        bcftools index -f $tmpinvcf
+
+        >&2 echo "Annotating VCF with density..."
+        den_vcf=$(mktemp -u).vcf.gz
+        python {input.script} -w {params.window} $tmpinvcf | bcftools view -o $den_vcf
+        bcftools index -f $den_vcf
+
+        >&2 echo "Annotating VCF with distance to repetitive regions..."
+        hdr=$(mktemp -u).hdr
+        dist=$(mktemp -u).tab.gz
+        echo '##INFO=<ID=DIST,Number=1,Type=Integer,Description="Distance to closest repetitive region">' > $hdr
+        bedtools closest -a $den_vcf -b {input.repeats} -d -t first | 
+            cut -f1,2,15 |
+            bgzip -c > $dist
+        tabix -f -s1 -b2 -e2 $dist
+        bcftools annotate -a $dist -h $hdr -c CHROM,POS,DIST $den_vcf -o {output.vcf}
+        bcftools index -f {output.vcf}
+
+        rm -f $den_vcf $hdr $dist $tmpinvcf
+        >&2 echo "Done."
+        """
+
+
+use rule annotate_dist_to_repeats_and_density as annotate_dist_to_repeats_and_density_illumina with:
+    input:
+        vcf=RESULTS / "assess/mutref/illumina/{sample}/{sample}.summary.vcf",
+        repeats=RESULTS / "truth/{sample}/{sample}.repetitive_regions.bed",
+        script=SCRIPTS / "variant_density.py",
+    output:
+        vcf=RESULTS
+        / "assess/mutref/illumina/{sample}/{sample}.summary.annotated.vcf.gz",
+    log:
+        LOGS / "annotate_dist_to_repeats_and_density_illumina/mutref/{sample}.log",
+
+
+rule combine_annotations:
+    input:
+        vcfs=expand(
+            RESULTS
+            / "assess/mutref/{caller}/100x/{mode}/{version}/{model}/{sample}/{sample}.summary.annotated.vcf.gz",
+            caller=CALLERS,
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+            sample=SAMPLES,
+        ),
+        illumina_vcfs=expand(
+            RESULTS
+            / "assess/mutref/illumina/{sample}/{sample}.summary.annotated.vcf.gz",
+            sample=SAMPLES,
+        ),
+    output:
+        csv=RESULTS / "assess/mutref/annotations.csv",
+    log:
+        LOGS / "combine_annotations.log",
+    resources:
+        runtime="20m",
+        mem_mb=2 * GB,
+    container:
+        "docker://quay.io/biocontainers/cyvcf2:0.30.28--py310hcf1fb4a_0"
+    script:
+        SCRIPTS / "combine_dist_and_density.py"
+
+
 rule assess_mutref_calls_without_repetitive_regions:
     input:
         query_vcf=RESULTS
