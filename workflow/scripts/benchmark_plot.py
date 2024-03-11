@@ -151,5 +151,5 @@ rt_ax.tick_params(axis="both", which="major", labelsize=FS)
 
 fig.tight_layout()
 
-fig.savefig(snakemake.output.png)
+fig.savefig(snakemake.output.pdf)
 df.to_csv(snakemake.output.csv, index=False)
