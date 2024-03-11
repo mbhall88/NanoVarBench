@@ -38,8 +38,11 @@ for p in map(Path, snakemake.input.faidx):
     size = sum(int(l.split("\t")[1]) for l in p.read_text().splitlines())
     gsize[sample] = size
 
+tsvs = list(map(Path, snakemake.input.call_benchmark))
+tsvs.extend(list(map(Path, snakemake.input.align_benchmark)))
+
 frames = []
-for p in map(Path, snakemake.input.benchmark):
+for p in tsvs:
     df = pd.read_csv(p, sep="\t")
     sample = p.stem
     model = p.parts[-2].split("_")[-1].split("@")[0]
@@ -51,6 +54,10 @@ for p in map(Path, snakemake.input.benchmark):
     dp = int(p.parts[-5][:-1])
     bp = dp * gsize[sample]
     caller = p.parts[-6]
+
+    if "align" in caller:
+        caller = "align"
+
     df["sample"] = sample
     df["model"] = model
     df["mode"] = mode
@@ -66,8 +73,9 @@ df = pd.concat(frames)
 y = "caller"
 hue = y
 order = sorted(df[hue].unique())
-pal = {c: cud()[i] for i, c in enumerate(order)}
-palette = sorted(pal)
+order.remove("align")
+order.append("align")
+palette = {c: cud()[i] for i, c in enumerate(order)}
 
 fig, axes = plt.subplots(nrows=2, figsize=(7, 5), dpi=300, sharey=True)
 

@@ -394,7 +394,7 @@ rule read_summary:
 rule benchmark_resources:
     input:
         faidx=expand(RESULTS / "truth/{sample}/mutreference.fna.fai", sample=SAMPLES),
-        benchmark=expand(
+        call_benchmark=expand(
             BENCH
             / "call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.tsv",
             caller=CALLERS,
@@ -403,6 +403,14 @@ rule benchmark_resources:
             version=VERSIONS,
             model=MODELS,
             sample=SAMPLES,
+        ),
+        align_benchmark=expand(
+            BENCH / "align_to_mutref/{depth}x/{mode}/{version}/{model}/{sample}.tsv",
+            sample=SAMPLES,
+            depth=DEPTHS,
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
         ),
     output:
         pdf=FIGURES / "benchmark_resources.pdf",
