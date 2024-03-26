@@ -35,7 +35,7 @@ for v in VERSIONS:
     MODELS.extend(list(config["model"][v]))
 
 CALLERS = config["callers"]
-
+NO_INDELS = set(config["no_indels"])
 
 target_files = set()
 
