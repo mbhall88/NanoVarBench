@@ -203,7 +203,7 @@ def main():
         "GC": "GC (%)",
     }
     latex_df = latex_df.rename(columns=rename_cols)
-    latex_df = latex_df.sort_values("Total variants", ascending=False)
+    latex_df = latex_df.sort_values("Species")
 
     # Write Latex
     caption = (

@@ -199,7 +199,9 @@ rule annotate_dist_to_repeats_and_density:
         vcf=RESULTS
         / "assess/mutref/{caller}/100x/{mode}/{version}/{model}/{sample}/{sample}.summary.vcf",
         repeats=RESULTS / "truth/{sample}/{sample}.repetitive_regions.bed",
+        reference=rules.create_mutref.output.mutref,
         script=SCRIPTS / "variant_density.py",
+        hom_script=SCRIPTS / "annotate_homopolymers.py",
     output:
         vcf=RESULTS
         / "assess/mutref/{caller}/100x/{mode}/{version}/{model}/{sample}/{sample}.summary.annotated.vcf.gz",
@@ -217,7 +219,8 @@ rule annotate_dist_to_repeats_and_density:
         """
         exec 2> {log}
         tmpinvcf=$(mktemp -u).vcf.gz
-        bcftools view -o $tmpinvcf {input.vcf}
+        >&2 echo "Annotating VCF with homopolymer length..."
+        python {input.hom_script} {input.vcf} {input.reference} | bcftools view -o $tmpinvcf
         bcftools index -f $tmpinvcf
 
         >&2 echo "Annotating VCF with density..."
@@ -245,7 +248,9 @@ use rule annotate_dist_to_repeats_and_density as annotate_dist_to_repeats_and_de
     input:
         vcf=RESULTS / "assess/mutref/illumina/{sample}/{sample}.summary.vcf",
         repeats=RESULTS / "truth/{sample}/{sample}.repetitive_regions.bed",
+        reference=rules.create_mutref.output.mutref,
         script=SCRIPTS / "variant_density.py",
+        hom_script=SCRIPTS / "annotate_homopolymers.py",
     output:
         vcf=RESULTS
         / "assess/mutref/illumina/{sample}/{sample}.summary.annotated.vcf.gz",
@@ -513,3 +518,55 @@ rule benchmark_resources:
         ENVS / "precision_recall_curve.yaml"
     script:
         SCRIPTS / "benchmark_plot.py"
+
+rule plot_false_calls:
+    input:
+        table=rules.combine_annotations.output.csv,
+        pr_wo_repeats=expand(
+            RESULTS
+            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv",
+            caller=CALLERS,
+            depth=[MAX_DEPTH],
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+            sample=SAMPLES,
+        ),
+        pr_illumina_wo_repeats=expand(
+            RESULTS
+            / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv",
+            sample=SAMPLES,
+        ),
+        pr_w_repeats=expand(
+            RESULTS
+            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv",
+            caller=CALLERS,
+            depth=[MAX_DEPTH],
+            mode=MODES,
+            version=VERSIONS,
+            model=MODELS,
+            sample=SAMPLES,
+        ),
+        pr_illumina_w_repeats=expand(
+            RESULTS / "assess/mutref/illumina/{sample}/{sample}.precision-recall.tsv",
+            sample=SAMPLES,
+        ),
+    output:
+        density_pdf=FIGURES / "false_calls/false_calls.density.pdf",
+        fn_pdfs=expand(
+            FIGURES / "false_calls/homopolymer.{caller}.fns.pdf",
+            caller=[c for c in CALLERS if c not in NO_INDELS],
+        ),
+        fp_pdfs=expand(
+            FIGURES / "false_calls/homopolymer.{caller}.fps.pdf",
+            caller=[c for c in CALLERS if c not in NO_INDELS],
+        ),
+    log:
+        LOGS / "plot_false_calls.log",
+    resources:
+        runtime="10m",
+        mem_mb=8 * GB,
+    conda:
+        ENVS / "precision_recall_curve.yaml"
+    script:
+        SCRIPTS / "plot_false_calls.py"

@@ -77,6 +77,7 @@ target_files.add(FIGURES / "benchmark_resources.pdf")
 target_files.add(RESULTS / "assess/mutref/annotations.csv")
 target_files.add(RESULTS / "assess/self/self_calls.json")
 target_files.add(FIGURES / "depth_plots.snp.pdf")
+target_files.add(FIGURES / "false_calls/false_calls.density.pdf")
 for p in [
     FIGURES / f"best_f1_plots/{metric}.pdf" for metric in ["f1", "recall", "precision"]
 ]:

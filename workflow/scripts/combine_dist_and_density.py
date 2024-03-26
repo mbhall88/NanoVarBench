@@ -32,7 +32,7 @@ def main():
 
     with open(snakemake.output.csv, "w") as f:
         print(
-            "sample,caller,mode,model,chrom,pos,ref,alt,decision,dist,density,vartype",
+            "sample,caller,mode,model,chrom,pos,ref,alt,decision,dist,density,homlen,vartype",
             file=f,
         )
         for path in map(Path, vcfs):
@@ -60,6 +60,12 @@ def main():
                     print(path, file=sys.stderr)
                     raise ValueError("No DEN field found in the record")
 
+                hom_len = record.INFO.get("HPL")
+                if hom_len is None:
+                    print(record, file=sys.stderr)
+                    print(path, file=sys.stderr)
+                    raise ValueError("No HPL field found in the record")
+
                 if record.is_indel:
                     vtype = "INDEL"
                 elif record.is_snp:
@@ -83,6 +89,7 @@ def main():
                                 decision,
                                 dist,
                                 density,
+                                hom_len,
                                 vtype,
                             ],
                         )
