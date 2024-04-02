@@ -30,13 +30,9 @@ bioRxiv 2024.03.15.585313; doi: [10.1101/2024.03.15.585313][doi]
 
 ## Data
 
-Accessions for all data can be found in [`config/accessions.csv`](./config/accessions.csv).
+Accessions and DOIs for all data can be found in [`config/accessions.csv`](./config/accessions.csv).
 
 The variant truthsets and associated data for making these is [archived on Zenodo][truth].
-
-*(Note 15/03/2024) we are in the process of uploading the data to SRA so please be patient as this is taking some time. We will also be uploading the pod5 data to SRA too. BioProject and BioSample accessions have been generated and uploads for the appropriate samples will appear there.*
-
-*(Note 25/03/2024) SRA do not currently accept pod5 data, so we are working with our institution to make these available from a persistant and citeable storage location.*
 
 ## Usage
 
