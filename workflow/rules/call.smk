@@ -321,6 +321,57 @@ use rule call_self_longshot as call_mutref_longshot with:
         )
 
 
+caller = "medaka"
+
+
+rule call_self_medaka:
+    input:
+        reads=rules.align_to_self.input.reads,
+        reference=rules.align_to_self.input.reference,
+        faidx=rules.faidx_reference.output.faidx,
+    output:
+        vcf=RESULTS
+        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+    log:
+        LOGS
+        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+    benchmark:
+        repeat(
+            BENCH
+            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+            REPEAT,
+        )
+    threads: 4
+    resources:
+        mem_mb=16 * GB,
+        runtime="1d",
+    container:
+        "docker://quay.io/biocontainers/medaka:1.11.3--py39h05d5c5e_0"
+    shadow:
+        "shallow"
+    script:
+        "../scripts/callers/medaka.sh"
+
+
+use rule call_self_medaka as call_mutref_medaka with:
+    input:
+        reads=rules.align_to_mutref.input.reads,
+        reference=rules.align_to_mutref.input.reference,
+        faidx=rules.faidx_mutref.output.faidx,
+    output:
+        vcf=RESULTS
+        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+    log:
+        LOGS
+        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+    benchmark:
+        repeat(
+            BENCH
+            / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+            REPEAT,
+        )
+
+
 caller = "nanocaller"
 
 
@@ -411,6 +462,7 @@ rule filter_variants:
             bcftools view -e 'ALT="."' |                                    # remove sites with no alt allele (NanoCaller bug)
             bcftools norm -f {input.reference} -a -c e -m - |               # normalise and left-align indels
             bcftools norm -aD |                                             # remove duplicates after normalisation
+            #bcftools norm -D -N |                                            # remove duplicates without normalisation
             bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles
             bcftools +setGT - -- -t a -n c:M |                              # make genotypes haploid e.g., 1/1 -> 1
             bcftools sort |                                                 # sort VCF

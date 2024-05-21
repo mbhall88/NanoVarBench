@@ -60,6 +60,7 @@ callers:
   - deepvariant
   - freebayes
   - longshot
+  - medaka
   - nanocaller
 
 # list of callers that do not call indels

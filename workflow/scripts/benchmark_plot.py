@@ -137,15 +137,15 @@ sns.stripplot(
 
 rt_ax.set_xscale("log")
 ticks = [
-    (0.1, "0.1s/Mbp"),
-    (1, "1s/Mbp"),
-    (10, "10s/Mbp"),
-    (60, "1m/Mbp"),
-    (600, "10m/Mbp"),
+    (0.1, "0.1s"),
+    (1, "1s"),
+    (10, "10s"),
+    (60, "1m"),
+    (600, "10m"),
 ]
 rt_ax.set_xticks([t[0] for t in ticks])
 rt_ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
-rt_ax.set_xlabel("CPU time", fontsize=FS)
+rt_ax.set_xlabel("CPU time per Mbp", fontsize=FS)
 rt_ax.set_ylabel("")
 rt_ax.tick_params(axis="both", which="major", labelsize=FS)
 

@@ -146,20 +146,16 @@ rule assess_mutref_calls:
         / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.query.tsv",
         truth=RESULTS
         / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.truth.tsv",
-        dist_summary=RESULTS
-        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.distance-summary.tsv",
-        dist=RESULTS
-        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.distance.tsv",
     log:
         LOGS
         / "assess_mutref_calls/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
-        runtime="5m",
-        mem_mb=500,
+        runtime="20m",
+        mem_mb=int(2 * GB),
     container:
         "docker://timd1/vcfdist:v2.3.3"
     params:
-        opts=f"--largest-variant {config['truth']['max_indel']} --credit-threshold 1.0 -d",
+        opts=f"--largest-variant {config['truth']['max_indel']} --credit-threshold 1.0",
         prefix=lambda wildcards, output: Path(output.pr).with_suffix("").with_suffix(""),
     shell:
         """
@@ -187,9 +183,6 @@ use rule assess_mutref_calls as assess_mutref_calls_illumina with:
         summary=RESULTS / "assess/mutref/illumina/{sample}/{sample}.summary.vcf",
         query=RESULTS / "assess/mutref/illumina/{sample}/{sample}.query.tsv",
         truth=RESULTS / "assess/mutref/illumina/{sample}/{sample}.truth.tsv",
-        dist_summary=RESULTS
-        / "assess/mutref/illumina/{sample}/{sample}.distance-summary.tsv",
-        dist=RESULTS / "assess/mutref/illumina/{sample}/{sample}.distance.tsv",
     log:
         LOGS / "assess_mutref_calls_illumina/{sample}.log",
 
@@ -306,20 +299,16 @@ rule assess_mutref_calls_without_repetitive_regions:
         / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.query.tsv",
         truth=RESULTS
         / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.truth.tsv",
-        dist_summary=RESULTS
-        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.distance-summary.tsv",
-        dist=RESULTS
-        / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.distance.tsv",
     log:
         LOGS
         / "assess_mutref_calls_without_repetitive_regions/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
-        runtime="5m",
-        mem_mb=500,
+        runtime="20m",
+        mem_mb=int(2 * GB),
     container:
         "docker://timd1/vcfdist:v2.3.3"
     params:
-        opts=f"--largest-variant {config['truth']['max_indel']} --credit-threshold 1.0 -d",
+        opts=rules.assess_mutref_calls.params.opts,
         prefix=lambda wildcards, output: Path(output.pr).with_suffix("").with_suffix(""),
     shell:
         """
@@ -351,10 +340,6 @@ use rule assess_mutref_calls_without_repetitive_regions as assess_mutref_calls_i
         / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.query.tsv",
         truth=RESULTS
         / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.truth.tsv",
-        dist_summary=RESULTS
-        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.distance-summary.tsv",
-        dist=RESULTS
-        / "assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.distance.tsv",
     log:
         LOGS / "assess_mutref_calls_illumina_without_repetitive_regions/{sample}.log",
 
