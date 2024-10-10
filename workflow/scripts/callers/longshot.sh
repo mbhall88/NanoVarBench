@@ -10,7 +10,7 @@ finalvcf="${snakemake_output[vcf]}"
 sample="${snakemake_wildcards[sample]}"
 outvcf=$(mktemp -u).vcf
 
-longshot -AFn \
+longshot -Fn \
     -b "$aln" \
     -f "$ref" \
     -o "$outvcf" \
