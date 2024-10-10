@@ -28,32 +28,6 @@ def infer_species(sample):
 def infer_taxid(wildcards):
     return pep.get_sample(wildcards.sample)["taxid"]
 
-
-def infer_vcf_reference(wildcards):
-    if wildcards.ref == "self":
-        return str(RESULTS / f"reference/{wildcards.sample}.fa")
-    elif wildcards.ref == "mutref":
-        return str(RESULTS / f"truth/{wildcards.sample}/mutreference.fna")
-
-
-def infer_vcf_reference_faidx(wildcards):
-    return infer_vcf_reference(wildcards) + ".fai"
-
-
-def infer_illumina_vcf_to_filter(wildcards):
-    if wildcards.ref == "self":
-        return (
-            RESULTS / f"call/self/illumina/{wildcards.sample}/{wildcards.sample}.vcf.gz"
-        )
-    elif wildcards.ref == "mutref":
-        return (
-            RESULTS
-            / f"call/mutref/illumina/{wildcards.sample}/{wildcards.sample}.raw.vcf.gz"
-        )
-    else:
-        raise ValueError(f"Unknown ref: {wildcards.ref}")
-
-
 def get_min_completeness(wildcards):
     default = truth_config["min_completeness"]
     sample_specific_truth_config = config.get("sample_specific_truth", {}).get(

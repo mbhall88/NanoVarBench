@@ -1,37 +1,5 @@
 REPEAT = config.get("repeat", 1)
 
-
-rule call_self_illumina:
-    input:
-        r1=rules.preprocess_illumina.output.r1,
-        r2=rules.preprocess_illumina.output.r2,
-        reference=rules.faidx_reference.output.fasta,
-    output:
-        vcf=RESULTS / "call/self/illumina/{sample}/{sample}.vcf.gz",
-        alignment=RESULTS / "call/self/illumina/{sample}/{sample}.bam",
-    log:
-        LOGS / "call_self_illumina/{sample}.log",
-    benchmark:
-        repeat(
-            BENCH / "call_self_illumina/{sample}.tsv",
-            REPEAT,
-        )
-    threads: 4
-    resources:
-        mem_mb=12 * GB,
-        runtime="4h",
-    params:
-        opts="--force --prefix {sample}",
-        outdir=lambda wildcards, output: Path(output.vcf).parent,
-    container:
-        "docker://quay.io/biocontainers/snippy:4.6.0--hdfd78af_3"
-    shell:
-        """
-        snippy {params.opts} --cpus {threads} --reference {input.reference} \
-            --R1 {input.r1} --R2 {input.r2} --outdir {params.outdir} 2> {log}
-        """
-
-
 rule call_mutref_illumina:
     input:
         r1=rules.preprocess_illumina.output.r1,
@@ -69,21 +37,21 @@ rule call_mutref_illumina:
 caller = "bcftools"
 
 
-rule call_self_bcftools:
+rule call_mutref_bcftools:
     input:
-        alignment=rules.align_to_self.output.alignment,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
+        alignment=rules.align_to_mutref.output.alignment,
+        reference=rules.align_to_mutref.input.reference,
+        faidx=rules.faidx_mutref.output.faidx,
     output:
         vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
+        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
     log:
         LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
+        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
     benchmark:
         repeat(
             BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
+            / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
     threads: 4
@@ -98,7 +66,10 @@ rule call_self_bcftools:
         "../scripts/callers/bcftools.sh"
 
 
-use rule call_self_bcftools as call_mutref_bcftools with:
+caller = "clair3"
+
+
+rule call_mutref_clair3:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -113,28 +84,6 @@ use rule call_self_bcftools as call_mutref_bcftools with:
         repeat(
             BENCH
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-
-
-caller = "clair3"
-
-
-rule call_self_clair3:
-    input:
-        alignment=rules.align_to_self.output.alignment,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
     threads: 4
@@ -149,7 +98,10 @@ rule call_self_clair3:
         "../scripts/callers/clair3.sh"
 
 
-use rule call_self_clair3 as call_mutref_clair3 with:
+caller = "deepvariant"
+
+
+rule call_mutref_deepvariant:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -164,28 +116,6 @@ use rule call_self_clair3 as call_mutref_clair3 with:
         repeat(
             BENCH
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-
-
-caller = "deepvariant"
-
-
-rule call_self_deepvariant:
-    input:
-        alignment=rules.align_to_self.output.alignment,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
     threads: 4
@@ -200,7 +130,10 @@ rule call_self_deepvariant:
         "../scripts/callers/deepvariant.sh"
 
 
-use rule call_self_deepvariant as call_mutref_deepvariant with:
+caller = "freebayes"
+
+
+rule call_mutref_freebayes:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -215,28 +148,6 @@ use rule call_self_deepvariant as call_mutref_deepvariant with:
         repeat(
             BENCH
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-
-
-caller = "freebayes"
-
-
-rule call_self_freebayes:
-    input:
-        alignment=rules.align_to_self.output.alignment,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
     threads: 8
@@ -251,7 +162,10 @@ rule call_self_freebayes:
         "../scripts/callers/freebayes.sh"
 
 
-use rule call_self_freebayes as call_mutref_freebayes with:
+caller = "longshot"
+
+
+rule call_mutref_longshot:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -266,28 +180,6 @@ use rule call_self_freebayes as call_mutref_freebayes with:
         repeat(
             BENCH
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-
-
-caller = "longshot"
-
-
-rule call_self_longshot:
-    input:
-        alignment=rules.align_to_self.output.alignment,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
     threads: 4
@@ -302,58 +194,10 @@ rule call_self_longshot:
         "../scripts/callers/longshot.sh"
 
 
-use rule call_self_longshot as call_mutref_longshot with:
-    input:
-        alignment=rules.align_to_mutref.output.alignment,
-        reference=rules.align_to_mutref.input.reference,
-        faidx=rules.faidx_mutref.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-
-
 caller = "medaka"
 
 
-rule call_self_medaka:
-    input:
-        reads=rules.align_to_self.input.reads,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-    threads: 4
-    resources:
-        mem_mb=16 * GB,
-        runtime="1d",
-    container:
-        "docker://quay.io/biocontainers/medaka:1.11.3--py39h05d5c5e_0"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/medaka.sh"
-
-
-use rule call_self_medaka as call_mutref_medaka with:
+rule call_mutref_medaka:
     input:
         reads=rules.align_to_mutref.input.reads,
         reference=rules.align_to_mutref.input.reference,
@@ -370,41 +214,22 @@ use rule call_self_medaka as call_mutref_medaka with:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
+    threads: 4
+    resources:
+        mem_mb=16 * GB,
+        runtime="1d",
+    container:
+        "docker://quay.io/biocontainers/medaka:1.11.3--py39h05d5c5e_0"
+    shadow:
+        "shallow"
+    script:
+        "../scripts/callers/medaka.sh"
 
 
 caller = "nanocaller"
 
 
-rule call_self_nanocaller:
-    input:
-        alignment=rules.align_to_self.output.alignment,
-        reference=rules.align_to_self.input.reference,
-        faidx=rules.faidx_reference.output.faidx,
-    output:
-        vcf=RESULTS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.{{depth}}x.{caller}.vcf.gz",
-    log:
-        LOGS
-        / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.log",
-    benchmark:
-        repeat(
-            BENCH
-            / f"call/self/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
-            REPEAT,
-        )
-    threads: 4
-    resources:
-        mem_mb=8 * GB,
-        runtime="6h",
-    container:
-        "docker://genomicslab/nanocaller:3.4.1"
-    shadow:
-        "shallow"
-    script:
-        "../scripts/callers/nanocaller.sh"
-
-
-use rule call_self_nanocaller as call_mutref_nanocaller with:
+rule call_mutref_nanocaller:
     input:
         alignment=rules.align_to_mutref.output.alignment,
         reference=rules.align_to_mutref.input.reference,
@@ -421,21 +246,31 @@ use rule call_self_nanocaller as call_mutref_nanocaller with:
             / f"call/mutref/{caller}/{{depth}}x/{{mode}}/{{version}}/{{model}}/{{sample}}.tsv",
             REPEAT,
         )
+    threads: 4
+    resources:
+        mem_mb=8 * GB,
+        runtime="6h",
+    container:
+        "docker://genomicslab/nanocaller:3.4.1"
+    shadow:
+        "shallow"
+    script:
+        "../scripts/callers/nanocaller.sh"
 
 
 rule filter_variants:
     input:
         vcf=RESULTS
-        / "call/{ref}/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.vcf.gz",
-        reference=infer_vcf_reference,
-        faidx=infer_vcf_reference_faidx,
+        / "call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.vcf.gz",
+        reference=rules.faidx_mutref.input.reference,
+        faidx=rules.faidx_mutref.output.faidx,
         filter_script=SCRIPTS / "filter_hets.py",
     output:
         vcf=RESULTS
-        / "call/{ref}/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz",
+        / "call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz",
     log:
         LOGS
-        / "filter_variants/{ref}/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
+        / "filter_variants/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
         mem_mb=int(0.5 * GB),
         runtime="3m",
@@ -473,9 +308,9 @@ rule filter_variants:
 
 use rule filter_variants as filter_variants_illumina with:
     input:
-        vcf=infer_illumina_vcf_to_filter,
-        reference=infer_vcf_reference,
-        faidx=infer_vcf_reference_faidx,
+        vcf=rules.call_mutref_illumina.output.vcf,
+        reference=rules.faidx_mutref.input.reference,
+        faidx=rules.faidx_mutref.output.faidx,
         filter_script=SCRIPTS / "filter_hets.py",
     output:
         vcf=RESULTS / "call/{ref}/illumina/{sample}/{sample}.filter.vcf.gz",

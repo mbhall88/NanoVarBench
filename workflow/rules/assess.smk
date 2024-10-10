@@ -1,132 +1,3 @@
-rule assess_self_calls:
-    input:
-        vcf=RESULTS
-        / "call/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.filter.vcf.gz",
-        reference=rules.align_to_self.input.reference,
-    output:
-        csv=RESULTS
-        / "assess/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.csv",
-        json=RESULTS
-        / "assess/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.json",
-    log:
-        LOGS
-        / "assess_self_calls/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
-    resources:
-        runtime="2m",
-        mem_mb=500,
-    conda:
-        ENVS / "assess_self_calls.yaml"
-    script:
-        SCRIPTS / "assess_self_calls.py"
-
-
-use rule assess_self_calls as assess_self_calls_illumina with:
-    input:
-        vcf=RESULTS / "call/self/illumina/{sample}/{sample}.filter.vcf.gz",
-        reference=rules.call_self_illumina.input.reference,
-    output:
-        csv=RESULTS / "assess/self/illumina/{sample}.csv",
-        json=RESULTS / "assess/self/illumina/{sample}.json",
-    log:
-        LOGS / "assess_self_calls_illumina/{sample}.log",
-
-
-rule combine_self_calls_csvs:
-    input:
-        csvs=expand(
-            RESULTS
-            / "assess/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.csv",
-            caller=CALLERS,
-            depth=[MAX_DEPTH],
-            mode=MODES,
-            version=VERSIONS,
-            model=MODELS,
-            sample=SAMPLES,
-        ),
-    output:
-        csv=RESULTS / "assess/self/self_calls.csv",
-    log:
-        LOGS / "combine_self_calls_csvs.log",
-    resources:
-        runtime="2m",
-        mem_mb=500,
-    container:
-        "docker://python:3.11-slim"
-    script:
-        SCRIPTS / "combine_csvs.py"
-
-
-use rule combine_self_calls_csvs as combine_self_calls_csvs_illumina with:
-    input:
-        csvs=expand(
-            RESULTS / "assess/self/illumina/{sample}.csv",
-            sample=SAMPLES,
-        ),
-    output:
-        csv=RESULTS / "assess/self/self_calls_illumina.csv",
-    log:
-        LOGS / "combine_self_calls_csvs_illumina.log",
-
-
-rule combine_self_calls_jsons:
-    input:
-        jsons=expand(
-            RESULTS
-            / "assess/self/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.{caller}.json",
-            caller=CALLERS,
-            depth=[MAX_DEPTH],
-            mode=MODES,
-            version=VERSIONS,
-            model=MODELS,
-            sample=SAMPLES,
-        ),
-    output:
-        json=RESULTS / "assess/self/self_calls.json",
-    log:
-        LOGS / "combine_self_calls_jsons.log",
-    resources:
-        runtime="2m",
-        mem_mb=2 * GB,
-    container:
-        "docker://python:3.11-slim"
-    script:
-        SCRIPTS / "combine_jsons.py"
-
-
-use rule combine_self_calls_jsons as combine_self_calls_jsons_illumina with:
-    input:
-        jsons=expand(
-            RESULTS / "assess/self/illumina/{sample}.json",
-            sample=SAMPLES,
-        ),
-    output:
-        json=RESULTS / "assess/self/self_calls_illumina.json",
-    log:
-        LOGS / "combine_self_calls_jsons_illumina.log",
-
-
-rule plot_self_fpr:
-    input:
-        csv=rules.combine_self_calls_csvs.output.csv,
-        illumina_csv=rules.combine_self_calls_csvs_illumina.output.csv,
-    output:
-        snps_png=FIGURES / "assess/self/self_fpr.snps.png",
-        indels_png=FIGURES / "assess/self/self_fpr.indels.png",
-        csv=TABLES / "assess/self/self_fpr.csv",
-    log:
-        LOGS / "plot_self_fpr.log",
-    resources:
-        runtime="5m",
-        mem_mb=500,
-    params:
-        sample2species={sample: infer_species(sample) for sample in SAMPLES},
-        no_indels=config.get("no_indels", []),
-    conda:
-        ENVS / "plot_self_fpr.yaml"
-    script:
-        SCRIPTS / "plot_self_fpr.py"
-
-
 rule assess_mutref_calls:
     input:
         query_vcf=RESULTS
@@ -255,10 +126,9 @@ rule combine_annotations:
     input:
         vcfs=expand(
             RESULTS
-            / "assess/mutref/{caller}/100x/{mode}/{version}/{model}/{sample}/{sample}.summary.annotated.vcf.gz",
+            / "assess/mutref/{caller}/100x/{mode}/{{version}}/{model}/{sample}/{sample}.summary.annotated.vcf.gz",
             caller=CALLERS,
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
             sample=SAMPLES,
         ),
@@ -268,9 +138,9 @@ rule combine_annotations:
             sample=SAMPLES,
         ),
     output:
-        csv=RESULTS / "assess/mutref/annotations.csv",
+        csv=RESULTS / "assess/mutref/annotations/{version}_annotations.csv",
     log:
-        LOGS / "combine_annotations.log",
+        LOGS / "combine_annotations/{version}.log",
     resources:
         runtime="20m",
         mem_mb=2 * GB,
@@ -347,18 +217,16 @@ use rule assess_mutref_calls_without_repetitive_regions as assess_mutref_calls_i
 rule depth_plots:
     input:
         postfilter_stats=expand(
-            RESULTS / "QC/stats/postfilter/{mode}/{version}/{model}.csv",
+            RESULTS / "QC/stats/postfilter/{mode}/{{version}}/{model}.csv",
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
         ),
         ont_pr=expand(
             RESULTS
-            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv",
+            / "assess/mutref/{caller}/{depth}x/{mode}/{{version}}/{model}/{sample}/{sample}.precision-recall.tsv",
             caller=CALLERS,
             depth=DEPTHS,
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
             sample=SAMPLES,
         ),
@@ -367,10 +235,10 @@ rule depth_plots:
             sample=SAMPLES,
         ),
     output:
-        snp_fig=FIGURES / "depth_plots.snp.pdf",
-        indel_fig=FIGURES / "depth_plots.indel.pdf",
+        snp_fig=FIGURES / "depth_plots/{version}.snp.pdf",
+        indel_fig=FIGURES / "depth_plots/{version}.indel.pdf",
     log:
-        LOGS / "depth_plots.log",
+        LOGS / "depth_plots/{version}.log",
     resources:
         runtime="10m",
         mem_mb=4 * GB,
