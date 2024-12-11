@@ -1,6 +1,6 @@
 rule align_to_mutref:
     input:
-        reads=rules.downsample_reads.output.reads,
+        reads=rules.basecall.output.reads,
         reference=rules.create_mutref.output.mutref,
     output:
         alignment=RESULTS

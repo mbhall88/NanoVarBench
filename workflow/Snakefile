@@ -1,7 +1,7 @@
 from pathlib import Path
 import itertools
 
-
+ROOT = Path(".").resolve()
 WORKFLOW = Path("workflow").resolve()
 CONFIG = Path("config").resolve()
 SCHEMAS = Path("schemas").resolve()
@@ -13,6 +13,7 @@ FIGURES = RESULTS / "figures"
 TABLES = RESULTS / "tables"
 BENCH = RESULTS / "benchmark"
 LOGS = Path("logs/rules").resolve()
+READS_DIR = ROOT / "../data/reads/"
 GB = 1_000
 
 
@@ -67,22 +68,21 @@ for sample in SAMPLES:
         / f"assess/mutref/illumina/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv"
     )
 
-for model in MODELS:
-    target_files.add(FIGURES / f"precision_recall_curve.{model}.pdf")
-
 for version in VERSIONS:
     target_files.add(FIGURES / f"depth_plots/{version}.snp.pdf")
-    target_files.add(RESULTS / "assess/mutref/annotations/{version}_annotations.csv")
+    target_files.add(RESULTS / f"assess/mutref/annotations/{version}_annotations.csv")
+    target_files.add(FIGURES / f"read_identity/{version}.pdf")
+    target_files.add(FIGURES / f"benchmark_resources/{version}.pdf")
+    target_files.add(FIGURES / f"false_calls/{version}/false_calls.density.pdf")
+    for p in [
+    FIGURES / f"best_f1_plots/{version}/{metric}.pdf" for metric in ["f1", "recall", "precision"]
+    ]:
+        target_files.add(p)
+
+    for model in MODELS:
+        target_files.add(FIGURES / f"precision_recall_curve/{version}/{model}.pdf")
 
 target_files.add(TABLES / "mutref_summary.csv")
-target_files.add(FIGURES / "read_identity.pdf")
-target_files.add(FIGURES / "benchmark_resources.pdf")
-target_files.add(FIGURES / "false_calls/false_calls.density.pdf")
-
-for p in [
-    FIGURES / f"best_f1_plots/{metric}.pdf" for metric in ["f1", "recall", "precision"]
-]:
-    target_files.add(p)
 
 
 rule all:
@@ -91,6 +91,7 @@ rule all:
 
 
 include: RULES / "common.smk"
+include: RULES / "basecall.smk"
 include: RULES / "qc.smk"
 include: RULES / "truth.smk"
 include: RULES / "align.smk"

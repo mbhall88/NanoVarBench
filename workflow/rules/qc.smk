@@ -20,7 +20,7 @@ rule faidx_reference:
 
 rule stats_prefilter:
     input:
-        reads=infer_original_reads_path,
+        reads=rules.basecall.output.reads,
         reference=rules.faidx_reference.output.fasta,
     output:
         stats=RESULTS / "QC/stats/prefilter/{mode}/{version}/{model}/{sample}.txt",
@@ -67,9 +67,9 @@ rule combine_stats_prefilter:
 
 rule filter_reads:
     input:
-        reads=infer_original_reads_path,
+        reads=rules.basecall.output.reads,
     output:
-        reads=RESULTS / "QC/filter/{mode}/{version}/{model}/{sample}.fq.gz",
+        reads=temp(RESULTS / "QC/filter/{mode}/{version}/{model}/{sample}.fq.gz"),
     log:
         LOGS / "filter_reads/{mode}/{version}/{model}/{sample}.log",
     resources:

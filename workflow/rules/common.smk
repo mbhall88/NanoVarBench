@@ -1,5 +1,7 @@
 from pathlib import Path
 
+def infer_pod5_url(wildcards):
+    return pep.get_sample(wildcards.sample)["pod5_url"]
 
 def infer_original_reads_path(wildcards):
     reads_dir = Path(pep.get_sample(wildcards.sample)["reads_dir"])

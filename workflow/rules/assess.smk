@@ -255,11 +255,10 @@ rule precision_recall_curve:
     input:
         pr=expand(
             RESULTS
-            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{{model}}/{sample}/{sample}.precision-recall.tsv",
+            / "assess/mutref/{caller}/{depth}x/{mode}/{{version}}/{{model}}/{sample}/{sample}.precision-recall.tsv",
             caller=CALLERS,
             depth=[MAX_DEPTH],
             mode=MODES,
-            version=VERSIONS,
             sample=SAMPLES,
         ),
         illumina_pr=expand(
@@ -267,9 +266,9 @@ rule precision_recall_curve:
             sample=SAMPLES,
         ),
     output:
-        pdf=FIGURES / "precision_recall_curve.{model}.pdf",
+        pdf=FIGURES / "precision_recall_curve/{version}/{model}.pdf",
     log:
-        LOGS / "precision_recall_curve/{model}.log",
+        LOGS / "precision_recall_curve/{version}/{model}.log",
     resources:
         runtime="30m",
         mem_mb=8 * GB,
@@ -285,11 +284,10 @@ rule best_f1:
     input:
         pr=expand(
             RESULTS
-            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv",
+            / "assess/mutref/{caller}/{depth}x/{mode}/{{version}}/{model}/{sample}/{sample}.precision-recall.tsv",
             caller=CALLERS,
             depth=[MAX_DEPTH],
             mode=MODES,
-            version=VERSIONS,
             sample=SAMPLES,
             model=MODELS,
         ),
@@ -299,12 +297,12 @@ rule best_f1:
         ),
     output:
         figures=[
-            FIGURES / f"best_f1_plots/{metric}.pdf"
+            FIGURES / f"best_f1_plots/{{version}}/{metric}.pdf"
             for metric in ["f1", "recall", "precision"]
         ],
-        csv=TABLES / "best_f1.csv",
+        csv=TABLES / "best_f1/{version}.csv",
     log:
-        LOGS / "best_f1.log",
+        LOGS / "best_f1/{version}.log",
     resources:
         runtime="30m",
         mem_mb=8 * GB,
@@ -319,16 +317,15 @@ rule best_f1:
 rule read_summary:
     input:
         csvs=expand(
-            RESULTS / "QC/stats/prefilter/{mode}/{version}/{model}.csv",
+            RESULTS / "QC/stats/prefilter/{mode}/{{version}}/{model}.csv",
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
         ),
     output:
-        csv=TABLES / "read_summary.csv",
-        pdf=FIGURES / "read_identity.pdf",
+        csv=TABLES / "read_summary/{version}.csv",
+        pdf=FIGURES / "read_identity/{version}.pdf",
     log:
-        LOGS / "read_summary.log",
+        LOGS / "read_summary/{version}.log",
     resources:
         runtime="5m",
         mem_mb=500,
@@ -343,27 +340,25 @@ rule benchmark_resources:
         faidx=expand(RESULTS / "truth/{sample}/mutreference.fna.fai", sample=SAMPLES),
         call_benchmark=expand(
             BENCH
-            / "call/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.tsv",
+            / "call/mutref/{caller}/{depth}x/{mode}/{{version}}/{model}/{sample}.tsv",
             caller=CALLERS,
             depth=DEPTHS,
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
             sample=SAMPLES,
         ),
         align_benchmark=expand(
-            BENCH / "align_to_mutref/{depth}x/{mode}/{version}/{model}/{sample}.tsv",
+            BENCH / "align_to_mutref/{depth}x/{mode}/{{version}}/{model}/{sample}.tsv",
             sample=SAMPLES,
             depth=DEPTHS,
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
         ),
     output:
-        pdf=FIGURES / "benchmark_resources.pdf",
-        csv=TABLES / "benchmark_resources.csv",
+        pdf=FIGURES / "benchmark_resources/{version}.pdf",
+        csv=TABLES / "benchmark_resources/{version}.csv",
     log:
-        LOGS / "benchmark_resources.log",
+        LOGS / "benchmark_resources/{version}.log",
     resources:
         runtime="5m",
         mem_mb=500,
@@ -377,11 +372,10 @@ rule plot_false_calls:
         table=rules.combine_annotations.output.csv,
         pr_wo_repeats=expand(
             RESULTS
-            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv",
+            / "assess/mutref/{caller}/{depth}x/{mode}/{{version}}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv",
             caller=CALLERS,
             depth=[MAX_DEPTH],
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
             sample=SAMPLES,
         ),
@@ -392,11 +386,10 @@ rule plot_false_calls:
         ),
         pr_w_repeats=expand(
             RESULTS
-            / "assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv",
+            / "assess/mutref/{caller}/{depth}x/{mode}/{{version}}/{model}/{sample}/{sample}.precision-recall.tsv",
             caller=CALLERS,
             depth=[MAX_DEPTH],
             mode=MODES,
-            version=VERSIONS,
             model=MODELS,
             sample=SAMPLES,
         ),
@@ -405,17 +398,17 @@ rule plot_false_calls:
             sample=SAMPLES,
         ),
     output:
-        density_pdf=FIGURES / "false_calls/false_calls.density.pdf",
+        density_pdf=FIGURES / "false_calls/{version}/false_calls.density.pdf",
         fn_pdfs=expand(
-            FIGURES / "false_calls/homopolymer.{caller}.fns.pdf",
+            FIGURES / "false_calls/{{version}}/homopolymer.{caller}.fns.pdf",
             caller=[c for c in CALLERS if c not in NO_INDELS],
         ),
         fp_pdfs=expand(
-            FIGURES / "false_calls/homopolymer.{caller}.fps.pdf",
+            FIGURES / "false_calls/{{version}}/homopolymer.{caller}.fps.pdf",
             caller=[c for c in CALLERS if c not in NO_INDELS],
         ),
     log:
-        LOGS / "plot_false_calls.log",
+        LOGS / "plot_false_calls/{version}.log",
     resources:
         runtime="10m",
         mem_mb=8 * GB,
