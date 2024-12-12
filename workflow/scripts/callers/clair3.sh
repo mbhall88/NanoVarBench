@@ -9,7 +9,7 @@ ref="${snakemake_input[reference]}"
 outvcf="${snakemake_output[vcf]}"
 model="${snakemake_wildcards[model]}"
 version="${snakemake_wildcards[version]}"
-# need to map model name e.g. dna_r10.4.1_e8.2_400bps_sup@v4.3.0 to clair model name e.g. r1041_e82_400bps_sup_v430
+# need to map model name e.g. dna_r10.4.1_e8.2_400bps_sup to clair model name e.g. r1041_e82_400bps_sup_v430
 # this is a bit hacky but it works
 model_name=$(echo "$model" | sed -E 's/.*dna_(.*)@.*/\1/')
 model_name=$(echo "$model_name" | sed -E 's/\.//g')

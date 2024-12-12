@@ -29,11 +29,9 @@ pepschema: str(SCHEMAS / "pep.yaml")
 SAMPLES = pep.sample_table["sample_name"]
 DEPTHS = sorted(config["QC"]["depths"])
 MAX_DEPTH = max(DEPTHS)
-VERSIONS = sorted(list(config["model"].keys()))
+VERSIONS = sorted(config["versions"])
 MODES = sorted(config["mode"])
-MODELS = []
-for v in VERSIONS:
-    MODELS.extend(list(config["model"][v]))
+MODELS = sorted(config["models"])
 
 CALLERS = config["callers"]
 NO_INDELS = set(config["no_indels"])
@@ -41,28 +39,23 @@ NO_INDELS = set(config["no_indels"])
 COMBINATIONS = []
 
 target_files = set()
-VCFS = []
 
-for sample in SAMPLES:
-    for mode in MODES:
-        for version in VERSIONS:
-            models = config["model"][version]
-            for model in models:
-                target_files.add(RESULTS / f"QC/stats/prefilter/{mode}/{version}/{model}.csv")
-                target_files.add(RESULTS / f"QC/stats/postfilter/{mode}/{version}/{model}.csv")
-                target_files.add(
-                    RESULTS / f"QC/stats/downsample/{depth}x/{mode}/{version}/{model}.csv"
-                )
-                for caller in CALLERS:
-                    target_files.add(
-                        RESULTS
-                        / f"assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv"
-                    )
-                    target_files.add(
-                        RESULTS
-                        / f"assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv"
-                    )
-                    
+for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DEPTHS):
+    target_files.add(RESULTS / f"QC/stats/prefilter/{mode}/{version}/{model}.csv")
+    target_files.add(RESULTS / f"QC/stats/postfilter/{mode}/{version}/{model}.csv")
+    target_files.add(
+        RESULTS / f"QC/stats/downsample/{depth}x/{mode}/{version}/{model}.csv"
+    )
+    for sample in SAMPLES:
+        for caller in CALLERS:
+            target_files.add(
+                RESULTS
+                / f"assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.precision-recall.tsv"
+            )
+            target_files.add(
+                RESULTS
+                / f"assess/mutref/{caller}/{depth}x/{mode}/{version}/{model}/{sample}/{sample}.without_repetitive_regions.precision-recall.tsv"
+            )
 
 
 for sample in SAMPLES:
@@ -86,7 +79,7 @@ for version in VERSIONS:
     ]:
         target_files.add(p)
 
-    for model in config["model"][version]:
+    for model in MODELS:
         target_files.add(FIGURES / f"precision_recall_curve/{version}/{model}.pdf")
 
 target_files.add(TABLES / "mutref_summary.csv")

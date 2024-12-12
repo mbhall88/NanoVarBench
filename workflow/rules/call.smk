@@ -91,7 +91,7 @@ rule call_mutref_clair3:
         mem_mb=8 * GB,
         runtime="6h",
     container:
-        "docker://quay.io/mbhall88/clair3:1.0.5"
+        "docker://quay.io/mbhall88/clair3:1.0.10"
     shadow:
         "shallow"
     script:
