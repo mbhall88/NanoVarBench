@@ -15,17 +15,19 @@ rule download_pod5:
 
 rule download_dorado_model:
     output:
-        model=directory(RESULTS / "dorado_models/{model}")
+        model=directory(RESULTS / "dorado_models/{model}@{version}")
+    
     log:
-        LOGS / "download_dorado_model/{model}.log"
+        LOGS / "download_dorado_model/{model}/{version}.log"
     resources:
         mem_mb=1_000,
         runtime="5m",
     params:
         model_dir=lambda wildcards, output: Path(output.model).parent,
-        opts="--overwrite"
+        opts="--overwrite",
+        model="{model}@{version}"
     shell:
-        "dorado download --model {wildcards.model} --models-directory {params.model_dir} {params.opts} 2> {log}"
+        "dorado download --model {params.model} --models-directory {params.model_dir} {params.opts} 2> {log}"
 
 rule basecall:
     input:
@@ -56,6 +58,6 @@ rule basecall:
             subcommand="basecaller"
         fi
 
-        (dorado $subcommand {params.opts} --models-directory {params.model_dir} {wildcards.model} {input.pod5} {output.reads} | \
+        (dorado $subcommand {params.opts} {input.model} {input.pod5} | \
             samtools fastq -T '*' | gzip) 2> {log} > {output.reads}
         """
