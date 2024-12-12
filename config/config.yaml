@@ -9,7 +9,7 @@ models:
 
 versions:
   - v4.3.0
-  # - v5.0.0
+  - v5.0.0
 
 # Parameters for quality control
 QC:
