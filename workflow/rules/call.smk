@@ -56,7 +56,7 @@ rule call_mutref_bcftools:
         )
     threads: 4
     resources:
-        mem_mb=16 * GB,
+        mem_mb=lambda wildcards, attempt: 4**attempt * GB,
         runtime="6h",
     container:
         "docker://quay.io/biocontainers/bcftools:1.19--h8b25389_0"
@@ -88,7 +88,7 @@ rule call_mutref_clair3:
         )
     threads: 4
     resources:
-        mem_mb=8 * GB,
+        mem_mb=lambda wildcards, attempt: 4**attempt * GB,
         runtime="6h",
     container:
         "docker://quay.io/mbhall88/clair3:1.0.10"
@@ -120,10 +120,10 @@ rule call_mutref_deepvariant:
         )
     threads: 4
     resources:
-        mem_mb=8 * GB,
-        runtime="1d",
+        mem_mb=lambda wildcards, attempt: 4**attempt * GB,
+        runtime="2d",
     container:
-        "docker://google/deepvariant:1.6.0"
+        "docker://google/deepvariant:1.9.0"
     shadow:
         "shallow"
     script:
@@ -152,8 +152,8 @@ rule call_mutref_freebayes:
         )
     threads: 8
     resources:
-        mem_mb=16 * GB,
-        runtime="1d",
+        mem_mb=lambda wildcards, attempt: attempt * 16 * GB,
+        runtime="3d",
     conda:
         ENVS / f"{caller}.yaml"
     shadow:
@@ -184,8 +184,8 @@ rule call_mutref_longshot:
         )
     threads: 4
     resources:
-        mem_mb=8 * GB,
-        runtime="6h",
+        mem_mb=lambda wildcards, attempt: 4**attempt * GB,
+        runtime="1d",
     conda:
         ENVS / f"{caller}.yaml"
     shadow:
@@ -216,10 +216,10 @@ rule call_mutref_medaka:
         )
     threads: 4
     resources:
-        mem_mb=16 * GB,
+        mem_mb=lambda wildcards, attempt: 4**attempt * GB,
         runtime="1d",
     container:
-        "docker://quay.io/biocontainers/medaka:1.11.3--py39h05d5c5e_0"
+        "docker://quay.io/biocontainers/medaka:2.0.1--py310he807b20_0"
     shadow:
         "shallow"
     script:
@@ -248,7 +248,7 @@ rule call_mutref_nanocaller:
         )
     threads: 4
     resources:
-        mem_mb=8 * GB,
+        mem_mb=lambda wildcards, attempt: 4**attempt * GB,
         runtime="6h",
     container:
         "docker://genomicslab/nanocaller:3.4.1"
@@ -302,6 +302,21 @@ rule filter_variants:
             bcftools +setGT - -- -t a -n c:M |                              # make genotypes haploid e.g., 1/1 -> 1
             bcftools sort |                                                 # sort VCF
             bcftools view -i 'GT="A"' -o {output.vcf})                      # remove non-alt alleles and write index
+        
+        # make sure the VCF is not empty
+        counts=$(bcftools +counts {output.vcf})
+
+        echo "$counts" 1>&2
+
+        # extract the total number of sites
+        num_sites=$(echo "$counts" | grep "Number of sites" | awk '{{print $4}}')
+
+        # Check if the number of sites is 0
+        if [[ "$num_sites" -eq 0 ]]; then
+            echo "Error: Number of sites is 0" 1>&2
+            exit 1
+        fi
+        
         bcftools index -f {output.vcf}
         """
 

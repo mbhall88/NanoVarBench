@@ -10,7 +10,10 @@ rule download_pod5:
         opts="",
         url=infer_pod5_url
     shell:
-        "(wget {params.opts} -O - {params.url} | tar x --directory={output.pod5} --strip-components=1) 2> {log}"
+        """
+        mkdir -p {output.pod5} 2> {log}
+        (wget {params.opts} -O - {params.url} | tar x --directory={output.pod5} --strip-components=1) 2>> {log}
+        """
 
 
 rule download_dorado_model:
@@ -40,8 +43,8 @@ rule basecall:
     benchmark:
         BENCH / "basecall/{mode}/{version}/{model}/{sample}.tsv"
     resources:
-        mem_mb=16 * GB,
-        runtime="1d",
+        mem_mb=20 * GB,
+        runtime="12h",
         partition="gpu-a100",
         slurm="gres=gpu:1",
     threads: 2
@@ -54,10 +57,12 @@ rule basecall:
         """
         if [ {wildcards.mode} = "duplex" ]; then
             subcommand="duplex"
+            tag_opt=(-d "dx:1")
         else
             subcommand="basecaller"
+            tag_opt=()
         fi
 
         (dorado $subcommand {params.opts} {input.model} {input.pod5} | \
-            samtools fastq -T '*' | gzip) 2> {log} > {output.reads}
+            samtools fastq -T '*' "${{tag_opt[@]}}" | gzip) 2> {log} > {output.reads}
         """

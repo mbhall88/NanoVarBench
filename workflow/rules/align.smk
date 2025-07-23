@@ -1,10 +1,10 @@
 rule align_to_mutref:
     input:
-        reads=rules.basecall.output.reads,
+        reads=rules.downsample_reads.output.reads,
         reference=rules.create_mutref.output.mutref,
     output:
-        alignment=RESULTS
-        / "align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam",
+        alignment=temp(RESULTS
+        / "align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam"),
         index=RESULTS
         / "align/mutref/{depth}x/{mode}/{version}/{model}/{sample}.{depth}x.bam.bai",
     log:
@@ -13,8 +13,8 @@ rule align_to_mutref:
         BENCH / "align_to_mutref/{depth}x/{mode}/{version}/{model}/{sample}.tsv"
     threads: 4
     resources:
-        mem_mb=4 * GB,
-        runtime="5m",
+        mem_mb=lambda wildcards, attempt: attempt * 8 * GB,
+        runtime=lambda wildcards, attempt: f"{10 * attempt}m",
     conda:
         ENVS / "align.yaml"
     params:

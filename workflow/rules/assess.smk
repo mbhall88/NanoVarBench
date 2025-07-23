@@ -22,15 +22,16 @@ rule assess_mutref_calls:
         / "assess_mutref_calls/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
         runtime="20m",
-        mem_mb=int(2 * GB),
+        mem_mb=lambda wildcards, attempt: {1: 2*GB, 2: 6*GB}.get(attempt, 20*GB),
     container:
-        "docker://timd1/vcfdist:v2.3.3"
+        "docker://timd1/vcfdist:v2.6.2"
     params:
         opts=f"--largest-variant {config['truth']['max_indel']} --credit-threshold 1.0",
         prefix=lambda wildcards, output: Path(output.pr).with_suffix("").with_suffix(""),
     shell:
         """
         exec 2> {log}
+        set -euo pipefail
         echo "Calculated maximum QUAL score..." 1>&2
         MAX_QUAL=$(bgzip -dc {input.query_vcf} | grep -v '^#' | cut -f 6 | sort -gr | sed -n '1p')
         echo "MAX_QUAL=$MAX_QUAL" 1>&2
@@ -174,15 +175,16 @@ rule assess_mutref_calls_without_repetitive_regions:
         / "assess_mutref_calls_without_repetitive_regions/{caller}/{depth}x/{mode}/{version}/{model}/{sample}.log",
     resources:
         runtime="20m",
-        mem_mb=int(2 * GB),
+        mem_mb=lambda wildcards, attempt: {1: 2*GB, 2: 6*GB}.get(attempt, 20*GB),
     container:
-        "docker://timd1/vcfdist:v2.3.3"
+        "docker://timd1/vcfdist:v2.6.2"
     params:
         opts=rules.assess_mutref_calls.params.opts,
         prefix=lambda wildcards, output: Path(output.pr).with_suffix("").with_suffix(""),
     shell:
         """
         exec 2> {log}
+        set -euo pipefail
         echo "Calculated maximum QUAL score..." 1>&2
         MAX_QUAL=$(bgzip -dc {input.query_vcf} | grep -v '^#' | cut -f 6 | sort -gr | sed -n '1p')
         echo "MAX_QUAL=$MAX_QUAL" 1>&2

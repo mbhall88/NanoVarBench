@@ -36,8 +36,6 @@ MODELS = sorted(config["models"])
 CALLERS = config["callers"]
 NO_INDELS = set(config["no_indels"])
 
-COMBINATIONS = []
-
 target_files = set()
 
 for mode, version, model, depth in itertools.product(MODES, VERSIONS, MODELS, DEPTHS):
@@ -74,6 +72,7 @@ for version in VERSIONS:
     target_files.add(FIGURES / f"read_identity/{version}.pdf")
     target_files.add(FIGURES / f"benchmark_resources/{version}.pdf")
     target_files.add(FIGURES / f"false_calls/{version}/false_calls.density.pdf")
+    target_files.add(TABLES / f"best_f1/{version}.csv")
     for p in [
     FIGURES / f"best_f1_plots/{version}/{metric}.pdf" for metric in ["f1", "recall", "precision"]
     ]:
