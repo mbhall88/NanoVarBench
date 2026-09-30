@@ -20,7 +20,7 @@ _eLife_ (2024) 13:RP98300; doi: [10.7554/eLife.98300][doi]
 @article{hall_benchmarking_2024,
 	title = {Benchmarking reveals superiority of deep learning variant callers on bacterial nanopore sequence data},
 	volume = {13},
-	copyright = {Creative Commons Attribution-ShareAlike 4.0 International License (CC-BY-SA)},
+	copyright = {Creative Commons Attribution 4.0 International License (CC-BY)},
 	issn = {2050-084X},
 	url = {https://doi.org/10.7554/eLife.98300},
 	doi = {10.7554/eLife.98300},
