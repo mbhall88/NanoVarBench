@@ -1,0 +1,60 @@
+cff-version: 1.2.0
+message: "If you use NanoVarBench, please cite the eLife paper below."
+type: software
+title: "NanoVarBench"
+abstract: "Code for benchmarking SNP and indel variant calling accuracy on bacterial Oxford Nanopore Technologies (ONT) sequencing data."
+authors:
+  - family-names: Hall
+    given-names: Michael B
+    orcid: "https://orcid.org/0000-0003-3683-6208"
+repository-code: "https://github.com/mbhall88/NanoVarBench"
+url: "https://github.com/mbhall88/NanoVarBench"
+license: MIT
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.10820969"
+    description: "Zenodo archive of the NanoVarBench code (concept DOI, resolves to the latest version)."
+preferred-citation:
+  type: article
+  title: "Benchmarking reveals superiority of deep learning variant callers on bacterial nanopore sequence data"
+  authors:
+    - family-names: Hall
+      given-names: Michael B
+      orcid: "https://orcid.org/0000-0003-3683-6208"
+    - family-names: Wick
+      given-names: Ryan R
+      orcid: "https://orcid.org/0000-0001-8349-0778"
+    - family-names: Judd
+      given-names: Louise M
+      orcid: "https://orcid.org/0000-0003-3613-4839"
+    - family-names: Nguyen
+      given-names: An N
+      orcid: "https://orcid.org/0000-0003-4893-6636"
+    - family-names: Steinig
+      given-names: Eike J
+    - family-names: Xie
+      given-names: Ouli
+      orcid: "https://orcid.org/0000-0002-5032-1932"
+    - family-names: Davies
+      given-names: Mark
+    - family-names: Seemann
+      given-names: Torsten
+    - family-names: Stinear
+      given-names: Timothy P
+      orcid: "https://orcid.org/0000-0003-0150-123X"
+    - family-names: Coin
+      given-names: Lachlan
+      orcid: "https://orcid.org/0000-0002-4300-455X"
+  editors:
+    - family-names: Weigel
+      given-names: Detlef
+  journal: "eLife"
+  volume: 13
+  start: RP98300
+  year: 2024
+  month: 10
+  date-published: 2024-10-10
+  issn: "2050-084X"
+  doi: "10.7554/eLife.98300"
+  url: "https://doi.org/10.7554/eLife.98300"
+  license: CC-BY-4.0
