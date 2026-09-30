@@ -12,8 +12,8 @@ url: "https://github.com/mbhall88/NanoVarBench"
 license: MIT
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.10820970"
-    description: "Zenodo archive of the NanoVarBench code (preprint release)."
+    value: "10.5281/zenodo.10820969"
+    description: "Zenodo archive of the NanoVarBench code (concept DOI, resolves to the latest version)."
 preferred-citation:
   type: article
   title: "Benchmarking reveals superiority of deep learning variant callers on bacterial nanopore sequence data"
