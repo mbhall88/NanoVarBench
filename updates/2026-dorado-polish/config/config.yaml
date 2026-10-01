@@ -21,8 +21,8 @@ results_dir: results                                  # tables, filtered VCFs, b
 # --- What to run --------------------------------------------------------------------
 run:
   samples: [ATCC_25922__202309]
-  read_models: [hac]
-  depths: [50]
+  read_models: [hac, sup]
+  depths: [5, 10, 25, 50]
   arms: [A, B, C, D]
 
 # Optional check (#13) that the reheadered-minimap2 path (ADR-0004) gives the same Dorado

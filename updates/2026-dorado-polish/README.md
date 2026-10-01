@@ -110,16 +110,23 @@ intermediates go to `work_dir`, and small results go to `results_dir`, which is 
 
 ## Test
 
-Seam 1 runs the whole workflow on a 40 kb fixture (tests/fixture/) for Arms A-D, with
-Dorado on CPU, then checks the results table, that each Arm records its versions, Calling
-model checksums and container digest, and that the fixture's known variants are true
-positives. It takes a few minutes, plus a download of the Clair3 images (about 6 GB) and
-HKU's models on a first run:
+Seam 1 runs the whole workflow on a 40 kb fixture (tests/fixture/) for Arms A-D, on a hac
+and a sup Read set at every Depth in the config (5, 10, 25 and 50x), with Dorado on CPU at
+the largest Depth. It checks the results table, that each Arm records its versions, Calling
+model checksums and container digest, that the chromosome's actual depth is within 5% of
+the Depth for every Read set, and that the fixture's known variants are true positives at
+50x. It takes several minutes, plus a download of the Clair3 images (about 6 GB) and HKU's
+models on a first run:
 
 ```sh
 DORADO=/path/to/dorado DORADO_MODELS_DIR=/path/to/models tests/seam1.sh
 # optionally CLAIR3_MODELS_DIR=/path/to/clair3_models to reuse downloaded models
+# optionally READ_MODELS="hac" DEPTHS="25 50" for a quicker run on a subset
 ```
+
+The fixture's reads (`reads.hac.fastq.gz`, `reads.sup.fastq.gz`, about 1.8 MB each) are the
+real ATCC_25922 reads for the window, thinned to an even ~52x; `tests/fixture/make_fixture.sh`
+records how they were made.
 
 Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
 precision-recall curves, `samtools coverage` output and caller info (tests/seam2/) where a
