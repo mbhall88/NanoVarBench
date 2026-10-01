@@ -1,0 +1,2 @@
+808c6b6ef058f29f39a46cb1f70799cf  ATCC_25922_fixture.tar.gz
+e9634481c358382f469c0b214c94082a  reads.fastq.gz

@@ -1,0 +1,2 @@
+image: docker://quay.io/biocontainers/rasusa@sha256:e8c7b92c66abd96fdb861a4b7977c6ac47f1e9df6428d539a6616bb257bb0846
+rasusa 5.1.0

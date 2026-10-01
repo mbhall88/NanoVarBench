@@ -1,0 +1,9 @@
+# The Filter chain's tools. The paper pinned bcftools=1.19 and cyvcf2=0.30; cyvcf2 0.30.x
+# can't be installed alongside htslib 1.24, so this uses the release that can.
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bcftools=1.24
+  - cyvcf2=0.34.0
+  - python=3.12
