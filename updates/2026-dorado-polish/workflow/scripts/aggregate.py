@@ -4,17 +4,29 @@ results.tsv has one row per Sample x Arm x Read model x Depth x variant type x s
 mode (the #6 contract):
   sweep_best    vcfdist's THRESHOLD == BEST row from the QUAL sweep (Best F1)
   default_pass  the THRESHOLD == NONE row from the PASS-only run (Default-PASS score)
+Both use vcfdist's precision, recall, F1 and counts. F1 Q-score is computed here as
+-10*log10(1 - F1) from the F1 column, which has 6 decimal places, so a perfect F1 is capped
+at Q60 (1 - F1 is floored at 1e-6). vcfdist's own F1_QSCORE column writes 100 for F1 = 1.
+
 depth.tsv has the actual per-contig depth of each Read set, and pr_curves.tsv the QUAL
-sweep's precision-recall curve for each Read set and Arm.
+sweep's precision-recall curve for each Read set and Arm: one row per QUAL threshold, keyed
+like results.tsv (without scoring_mode, since a curve is the sweep) and with its column names.
 """
 
 import csv
+import math
 import sys
 
 sys.stderr = open(snakemake.log[0], "w")
 
 VAR_TYPES = ["SNP", "INDEL", "ALL"]
 MODES = {"sweep_best": ("sweep_summary", "BEST"), "default_pass": ("pass_summary", "NONE")}
+F1_RESOLUTION = 1e-6  # vcfdist writes F1 to 6 decimal places
+
+
+def f1_qscore(f1):
+    """-10*log10(1 - F1), capped at Q60 for F1 = 1 (the F1 column's resolution)."""
+    return f"{-10 * math.log10(max(1 - float(f1), F1_RESOLUTION)):.6f}"
 
 
 def read_tsv(path):
@@ -106,7 +118,7 @@ for c in snakemake.params.combos:
                     "precision": r["PREC"],
                     "recall": r["RECALL"],
                     "f1": r["F1_SCORE"],
-                    "f1_qscore": r["F1_QSCORE"],
+                    "f1_qscore": f1_qscore(r["F1_SCORE"]),
                     "truth_tp": r["TRUTH_TP"],
                     "query_tp": r["QUERY_TP"],
                     "truth_fn": r["TRUTH_FN"],
@@ -116,7 +128,23 @@ for c in snakemake.params.combos:
 
     for r in read_tsv(c["sweep_pr"]):
         if r["VAR_TYPE"] in VAR_TYPES:
-            curves.append({**keys, **{k.lower(): v for k, v in r.items()}})
+            curves.append(
+                {
+                    **keys,
+                    "var_type": r["VAR_TYPE"],
+                    "min_qual": r["MIN_QUAL"],
+                    "precision": r["PREC"],
+                    "recall": r["RECALL"],
+                    "f1": r["F1_SCORE"],
+                    "f1_qscore": f1_qscore(r["F1_SCORE"]),
+                    "truth_total": r["TRUTH_TOTAL"],
+                    "truth_tp": r["TRUTH_TP"],
+                    "truth_fn": r["TRUTH_FN"],
+                    "query_total": r["QUERY_TOTAL"],
+                    "query_tp": r["QUERY_TP"],
+                    "query_fp": r["QUERY_FP"],
+                }
+            )
 
 
 def write(path, rows):

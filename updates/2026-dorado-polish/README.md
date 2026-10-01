@@ -20,9 +20,15 @@ The workflow runs all four Arms end to end: A, B and C with Clair3 (#9) and D wi
    Filter chain, and scores with vcfdist 2.6.4 (QUAL sweep and PASS only, ADR-0003);
 6. writes `results/tables/results.tsv` (one row per Sample x Arm x Read model x Depth x
    variant type x scoring mode), `depth.tsv` (actual per-contig depth), `pr_curves.tsv`
-   and `versions.txt`. Each Arm's `calls/.../<arm>.caller_info.tsv` records the caller
-   version, Calling model, the SHA256 of its files, and (for Clair3) the container digest,
-   and `results.tsv` carries them too;
+   and `versions.txt`. The scoring modes are `sweep_best` (Best F1, vcfdist's
+   `THRESHOLD == BEST` row from the QUAL sweep) and `default_pass` (the Default-PASS score:
+   PASS records only, no QUAL threshold), and both are reported for every Arm, since Clair3
+   sets FILTER as well as Dorado. `f1_qscore` is −10·log10(1 − F1), capped at Q60 for a
+   perfect F1. `pr_curves.tsv` has the QUAL sweep's precision and recall at each threshold,
+   keyed and named like `results.tsv`. `dnd_sample` flags the dnd samples (`dnd` in
+   [config/samples.tsv](config/samples.tsv)). Each Arm's `calls/.../<arm>.caller_info.tsv`
+   records the caller version, Calling model, the SHA256 of its files, and (for Clair3) the
+   container digest, and `results.tsv` carries them too;
 7. re-runs Dorado with `--device cpu` on the Depths in `dorado.cpu_run` (50x) for the
    runtime comparison (#12). These runs are timing only: they aren't scored, and
    `results/calls/.../<arm>.cpu_vs_main.tsv` checks their calls match the main run's.
@@ -86,4 +92,22 @@ HKU's models on a first run:
 ```sh
 DORADO=/path/to/dorado DORADO_MODELS_DIR=/path/to/models tests/seam1.sh
 # optionally CLAIR3_MODELS_DIR=/path/to/clair3_models to reuse downloaded models
+```
+
+Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
+precision-recall curves, `samtools coverage` output and caller info (tests/seam2/) where a
+run leaves them, for all 14 Samples x hac x 25 and 50x x Arms A-D. It then runs only the
+`aggregate` rule and checks the output tables:
+
+- `sweep_best` rows are the sweep's BEST row, and `default_pass` rows are the PASS-only
+  run's unthresholded NONE row, kept separate for every Arm;
+- F1 Q-score, including the Q60 cap;
+- actual depth for each Read set;
+- the dnd flag for all 14 Samples;
+- each PR curve's keys, and that every Best F1 row is a point on its curve.
+
+It takes a few seconds and needs only Snakemake (no GPU, Slurm, containers or downloads):
+
+```sh
+tests/seam2.sh   # OUTDIR=dir to keep the output somewhere other than a new temp dir
 ```

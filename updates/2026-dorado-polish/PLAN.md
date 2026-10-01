@@ -66,7 +66,7 @@ See [ADR-0002](docs/adr/0002-four-arm-design.md).
   5. Drop indels with |ILEN|>50 and `*` alleles.
   6. `+setGT` to haploid.
 - **Scoring:** vcfdist v2.6.4 with `--largest-variant 50 --credit-threshold 1.0 -mx <max QUAL> -b <whole-genome bed>`. Keep all records (QUAL sweep) and never pass `-s`. Dorado caps QUAL at 60, and in #7 the best threshold was QUAL≥0 for every variant type. A flat sweep is a finding in itself, for Ryan's question about whether QUAL separates bad calls. See [ADR-0003](docs/adr/0003-vcfdist-2-6-4.md).
-- **Metrics:** Best F1, precision and recall per variant type (SNP, INDEL, ALL), plus F1 Q-score, PR curves, and the Default-PASS score for Arm D.
+- **Metrics:** Best F1, precision and recall per variant type (SNP, INDEL, ALL), plus F1 Q-score, PR curves, and the Default-PASS score for every Arm (Clair3 sets FILTER too, so Dorado's default is compared with Clair3's).
 - **Runtime:** wall time and peak RAM from Snakemake's `benchmark:` output.
 
 ## Outputs

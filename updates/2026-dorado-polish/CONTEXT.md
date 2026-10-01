@@ -71,4 +71,7 @@ The F1 at the QUAL threshold that maximises it for a given variant type, i.e. vc
 _Avoid_: F1 (unqualified, when the threshold matters)
 
 **Default-PASS score**:
-Arm D scored using only records Dorado marks PASS, i.e. what a user gets without tuning a threshold.
+An Arm scored using only the records its caller marks PASS, with no QUAL threshold, i.e. what a user gets without tuning a threshold. Reported for every Arm: Dorado and Clair3 both set FILTER.
+
+**F1 Q-score**:
+F1 on a Phred scale, −10·log10(1 − F1). A perfect F1 is capped at Q60, the resolution of vcfdist's 6-decimal F1.
