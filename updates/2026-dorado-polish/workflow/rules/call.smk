@@ -1,4 +1,5 @@
-# Calling: one rule per caller family, parameterised by Arm.
+# Calling: one rule per caller family (Dorado, Clair3), parameterised by Arm. Each writes the
+# Arm's raw calls and a caller_info TSV (CALLER_INFO) that the aggregation reads.
 
 DORADO = config["dorado"]
 DORADO_MODELS_DIR = Path(DORADO["models_dir"])
@@ -52,7 +53,9 @@ rule call_dorado:
         model=lambda wc: DORADO_MODELS_DIR / dorado_model(wc.arm) / "weights.pt",
     output:
         vcf=CALL / "variants.vcf",
-        info=RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.caller_info.tsv",
+        info=CALLER_INFO,
+    wildcard_constraints:
+        arm=arm_pattern("dorado"),
     log:
         LOGS / "call_dorado/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
@@ -146,6 +149,150 @@ rule compare_dorado_devices:
         same=no; [ "$n_main" -eq "$n_cpu" ] && [ "$n_main" -eq "$n_both" ] && same=yes
         printf 'main_records\\tcpu_records\\tshared_records\\tsame_calls\\tmax_abs_qual_diff\\n%s\\t%s\\t%s\\t%s\\t%s\\n' \
             "$n_main" "$n_cpu" "$n_both" "$same" "$max_dq" > {output.tsv}
+        """
+
+
+# --- Clair3 (Arms A, B and C) ---------------------------------------------------------
+# The same options for every Clair3 Arm, matching the paper's rule (workflow/scripts/
+# callers/clair3.sh at the repo root) for haploid bacterial calling. --min_coverage is left
+# at its default of 2 in both versions, which is the Dorado --min-depth 2 (ADR-0002), and
+# the Fine-tuned model is never used (ADR-0001).
+
+CLAIR3 = config["clair3"]
+CLAIR3_MODELS_DIR = Path(CLAIR3["models_dir"])
+CLAIR3_MODEL_FILES = ["pileup.pt", "full_alignment.pt"]  # an HKU PyTorch model's files
+CLAIR3_SOURCES = ("bundled_tf", "hku_pytorch")
+
+for a, spec in ARMS.items():
+    if spec["caller"] == "clair3" and spec["calling_model"] not in CLAIR3_SOURCES:
+        raise ValueError(
+            f"Arm {a}: calling_model must be one of {CLAIR3_SOURCES}, not {spec['calling_model']}"
+        )
+
+
+def clair3_model(wildcards):
+    """The Calling model follows the Read model: hac reads use the hac model."""
+    return CLAIR3["calling_models"][wildcards.read_model]
+
+
+def clair3_model_path(wildcards):
+    if ARMS[wildcards.arm]["calling_model"] == "bundled_tf":
+        return f"{CLAIR3['bundled_models_dir']}/{clair3_model(wildcards)}"  # inside the container
+    return str(CLAIR3_MODELS_DIR / clair3_model(wildcards))
+
+
+def clair3_model_files(wildcards):
+    """The downloaded model files an Arm needs; none for the models bundled in the image."""
+    if ARMS[wildcards.arm]["calling_model"] == "bundled_tf":
+        return []
+    return [CLAIR3_MODELS_DIR / clair3_model(wildcards) / f for f in CLAIR3_MODEL_FILES]
+
+
+def clair3_container(wildcards):
+    return CONTAINERS[f"clair3-{ARMS[wildcards.arm]['caller_version']}"]
+
+
+rule download_clair3_model:
+    """Download an HKU-converted PyTorch Calling model (for Clair3 2.x) and check each file
+    against the SHA256 pinned in the config. HKU publishes no checksums, so the pins were
+    recorded from a download on 2026-10-01 (the files' sizes and hashes were identical on a
+    second download). Apptainer bind-mounts models_dir into the Clair3 container."""
+    output:
+        files=[CLAIR3_MODELS_DIR / "{model}" / f for f in CLAIR3_MODEL_FILES],
+    wildcard_constraints:
+        model="|".join(map(re.escape, CLAIR3["model_sha256"])),
+    log:
+        LOGS / "download_clair3_model/{model}.log",
+    resources:
+        mem_mb=1000,
+        runtime=15,
+    params:
+        url=CLAIR3["models_url"],
+        sha256=lambda wc: CLAIR3["model_sha256"][wc.model],
+        files=CLAIR3_MODEL_FILES,
+    run:
+        import hashlib
+        import time
+        import urllib.request
+
+        outdir = Path(output.files[0]).parent
+        outdir.mkdir(parents=True, exist_ok=True)
+        with open(log[0], "w") as lg:
+            for name in params.files:
+                url = f"{params.url}/{wildcards.model}/{name}"
+                part = outdir / (name + ".part")
+                for attempt in range(3):
+                    try:
+                        urllib.request.urlretrieve(url, part)
+                        break
+                    except OSError as err:
+                        print(f"{url}: attempt {attempt + 1} failed: {err}", file=lg)
+                        if attempt == 2:
+                            raise
+                        time.sleep(10)
+                got = hashlib.sha256(part.read_bytes()).hexdigest()
+                print(f"{url} sha256 {got} (want {params.sha256[name]})", file=lg)
+                if got != params.sha256[name]:
+                    part.unlink()
+                    raise ValueError(f"{url}: sha256 {got} != pinned {params.sha256[name]}")
+                part.rename(outdir / name)
+
+
+localrules:
+    download_clair3_model,
+
+
+rule call_clair3:
+    """Clair3 on the Arm's alignment: 8 CPU threads, haploid precise (the paper's options).
+    Records the version it ran, the Calling model, the SHA256 of each of the model's files
+    and the container digest."""
+    input:
+        bam=lambda wc: ALIGN / f"{arm_alignment(wc.arm)}.bam",
+        bai=lambda wc: ALIGN / f"{arm_alignment(wc.arm)}.bam.bai",
+        mutref=rules.extract_truth.output.mutref,
+        faidx=rules.index_mutref.output.faidx,
+        model_files=clair3_model_files,
+    output:
+        vcf=CALL / "variants.vcf.gz",
+        info=CALLER_INFO,
+    wildcard_constraints:
+        arm=arm_pattern("clair3"),
+    log:
+        LOGS / "call_clair3/{sample}.{read_model}.{depth}x.{arm}.log",
+    benchmark:
+        RESULTS / "benchmarks/call_clair3/{sample}.{read_model}.{depth}x.{arm}.tsv"
+    threads: CLAIR3["threads"]
+    resources:
+        mem_mb=16000,
+        runtime=120,
+    params:
+        model=clair3_model,
+        model_path=clair3_model_path,
+        options=" ".join(CLAIR3["options"]),
+        container=clair3_container,
+    container:
+        clair3_container
+    shell:
+        """
+        exec &> {log}
+        outdir=$(mktemp -d -p $(dirname {output.vcf}) clair3.XXXXXX)
+        trap 'rm -rf "$outdir"' EXIT
+        [ -r {params.model_path}/pileup.pt ] || [ -r {params.model_path}/pileup.index ] || \
+            {{ echo "no Calling model files in {params.model_path}" >&2; exit 1; }}
+
+        /opt/bin/run_clair3.sh --bam_fn={input.bam} --ref_fn={input.mutref} \
+            --threads={threads} --model_path={params.model_path} --output="$outdir" \
+            --sample_name={wildcards.sample} {params.options}
+        mv "$outdir/merge_output.vcf.gz" {output.vcf}
+
+        version=$(/opt/bin/run_clair3.sh --version 2>&1 | tail -n 1 | sed -E 's/^Clair3 v?//')
+        model_sha256=$(cd {params.model_path} && sha256sum $(ls -p | grep -v /) | sort -k2 \
+            | awk '{{printf "%s%s=%s", (NR > 1 ? ";" : ""), $2, $1}}')
+        hardware="cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | sed 's/^ *//')"
+        mkdir -p "$(dirname {output.info})"
+        printf 'caller\tcaller_version\tcalling_model\tcalling_model_sha256\tcontainer\tdevice\thardware\thost\n' > {output.info}
+        printf 'clair3\t%s\t%s\t%s\t%s\tcpu\t%s\t%s\n' "$version" "{params.model}" "$model_sha256" \
+            "{params.container}" "$hardware" "$(hostname)" >> {output.info}
         """
 
 

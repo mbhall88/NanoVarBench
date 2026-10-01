@@ -2,11 +2,14 @@
 # Seam 1: run the whole workflow on the tiny fixture (tests/fixture/), with Dorado on CPU,
 # then check the outputs. Needs snakemake (with apptainer and conda) on PATH.
 #
-#   DORADO=/path/to/dorado-2.1.2/bin/dorado [DORADO_MODELS_DIR=dir] [OUTDIR=dir] \
-#       tests/seam1.sh [extra snakemake args]
+#   DORADO=/path/to/dorado-2.1.2/bin/dorado [DORADO_MODELS_DIR=dir] \
+#       [CLAIR3_MODELS_DIR=dir] [OUTDIR=dir] tests/seam1.sh [extra snakemake args]
 #
-# DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills with
-# `dorado download` (needs internet). OUTDIR defaults to a new temporary directory.
+# It covers Arms A-D. DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills
+# with `dorado download` (needs internet). CLAIR3_MODELS_DIR defaults to
+# $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
+# models for Arm C and checking their SHA256s (needs internet). OUTDIR defaults to a new
+# temporary directory.
 # Conda envs and container images are cached in .snakemake/ and shared with real runs.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -16,6 +19,8 @@ FIXTURE=$HERE/fixture
 OUTDIR=${OUTDIR:-$(mktemp -d)}
 OUTDIR=$(mkdir -p "$OUTDIR" && cd "$OUTDIR" && pwd)
 MODELS=${DORADO_MODELS_DIR:-$OUTDIR/models}
+CLAIR3_MODELS=${CLAIR3_MODELS_DIR:-$OUTDIR/clair3_models}
+CLAIR3_MODELS=$(mkdir -p "$CLAIR3_MODELS" && cd "$CLAIR3_MODELS" && pwd)
 CORES=${CORES:-8}
 echo "Seam 1 output: $OUTDIR"
 
@@ -40,18 +45,20 @@ run:
   samples: [ATCC_25922_fixture]
   read_models: [hac]
   depths: [25]
-  arms: [D]
+  arms: [A, B, C, D]
 dorado:
   bin: {"2.1.2": $DORADO}
   models_dir: $MODELS
   device: cpu
   cpu_run: {depths: [25], threads: 2}
+clair3:
+  models_dir: $CLAIR3_MODELS
 YAML
 
 cd "$UPDATE"
 snakemake -s workflow/Snakefile --configfile "$OUTDIR/seam1_config/config.yaml" \
   --cores "$CORES" --software-deployment-method apptainer conda \
-  --apptainer-args "--bind $UPDATE,$OUTDIR" \
+  --apptainer-args "--bind $UPDATE,$OUTDIR,$CLAIR3_MODELS" \
   --conda-prefix "$UPDATE/.snakemake/conda" --apptainer-prefix "$UPDATE/.snakemake/singularity" \
   --show-failed-logs "$@"
 

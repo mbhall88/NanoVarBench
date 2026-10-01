@@ -96,7 +96,7 @@ See [ADR-0002](docs/adr/0002-four-arm-design.md).
 | Dorado 2.1.2 | https://cdn.oxfordnanoportal.com/software/analysis/dorado-2.1.2-linux-x64.tar.gz (CUDA 12.8; driver ≥525.105). Pre-download the bacterial model with `dorado download`; pass `--models-directory`. |
 | Clair3 1.0.5 | `docker://quay.io/mbhall88/clair3:1.0.5` (includes `/opt/models/r1041_e82_400bps_{hac,sup}_v430`) |
 | Clair3 2.0.3 | `docker://hkubal/clair3:v2.0.3` |
-| minimap2 | `quay.io/biocontainers/minimap2:2.26--he4a0461_2`, `:2.31--h118bc1c_0` |
+| minimap2 | mulled with samtools so the aligner can pipe into `samtools sort`: 2.26 + samtools 1.17 (`mulled-v2-66534bcb…:7e6194c8…-0`), 2.31 + samtools 1.23.1 (`mulled-v2-66534bcb…:b411340b…-0`) |
 | samtools | `quay.io/biocontainers/samtools:1.24--h9dcdb79_1` |
 | bcftools | `quay.io/biocontainers/bcftools:1.24--h118bc1c_2` |
 | rasusa | `quay.io/biocontainers/rasusa:5.1.0--hfa8f182_0` |

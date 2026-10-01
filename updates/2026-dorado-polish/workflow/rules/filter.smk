@@ -2,11 +2,16 @@
 # (workflow/rules/call.smk at the repo root) and applied unchanged to every Arm's calls.
 
 
+# Each caller's raw calls for an Arm (bcftools reads both plain and bgzipped VCFs).
+RAW_CALLS = {"dorado": CALL / "variants.vcf", "clair3": CALL / "variants.vcf.gz"}
+
+
 def raw_calls(wildcards):
     caller = ARMS[wildcards.arm]["caller"]
-    if caller == "dorado":
-        return CALL / "variants.vcf"
-    raise ValueError(f"No calling rule for caller {caller} (Arm {wildcards.arm})")
+    try:
+        return RAW_CALLS[caller]
+    except KeyError:
+        raise ValueError(f"No calling rule for caller {caller} (Arm {wildcards.arm})")
 
 
 rule filter_calls:

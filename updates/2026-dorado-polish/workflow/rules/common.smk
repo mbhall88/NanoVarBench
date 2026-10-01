@@ -5,6 +5,9 @@ from pathlib import Path
 
 # Containers, pinned by digest (#6). The tag each digest was taken from is in the comment.
 CONTAINERS = {
+    # mulled minimap2 2.26 + samtools 1.17, so Arm A's aligner can pipe into samtools sort
+    # (tag 7e6194c85b2f194e301c71cdda1c002a754e8cc1-0)
+    "minimap2-2.26": "docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:450ac9cf2a6a291d7ef0d3cebe29066c67edc642d325f568ec9196b8b83d51f7",
     # mulled minimap2 2.31-r1302 + samtools 1.23.1, so the aligner can pipe into samtools sort
     # (tag b411340b52d82a9c276d87c7a3dcffc880be762f-0)
     "minimap2-2.31": "docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:966a1318a02cc3cda1785ccf62a4db2390e88dd48f303befa6c4a0a89a241a49",
@@ -16,6 +19,11 @@ CONTAINERS = {
     "seqkit": "docker://quay.io/biocontainers/seqkit@sha256:45fb535880be37dfed5be5517111fb8bfdd6234ef36e725b126a6131b1af2ef0",
     # rasusa:5.1.0--hfa8f182_0
     "rasusa": "docker://quay.io/biocontainers/rasusa@sha256:e8c7b92c66abd96fdb861a4b7977c6ac47f1e9df6428d539a6616bb257bb0846",
+    # quay.io/mbhall88/clair3:1.0.5, the paper's Clair3 (Arms A and B); bundles the TF
+    # r1041_e82_400bps_{hac,sup}_v430 Calling models in /opt/models
+    "clair3-1.0.5": "docker://quay.io/mbhall88/clair3@sha256:6a4c352e7d14ebb67bdad4be366dcbf6afa66cc7f0ee0b37a05cebe3f4754735",
+    # hkubal/clair3:v2.0.3 (Arm C); the v4.3.0 PyTorch Calling models aren't bundled
+    "clair3-2.0.3": "docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202",
     # timd1/vcfdist:v2.6.4 (ADR-0003)
     "vcfdist": "docker://timd1/vcfdist@sha256:d8b14a999a290f3b21dd4cde3bf52f2ad814b252823b8a4d9a01b548ae71dee3",
 }
@@ -56,6 +64,12 @@ for s in RUN_SAMPLES:
 for a in RUN_ARMS:
     if a not in ARMS:
         raise ValueError(f"Arm {a} is not defined under 'arms' in the config")
+CALLERS = ("dorado", "clair3")
+for a, spec in ARMS.items():
+    if spec["caller"] not in CALLERS:
+        raise ValueError(f"Arm {a}: no calling rule for caller {spec['caller']}")
+    if spec["caller"] == "clair3" and f"clair3-{spec['caller_version']}" not in CONTAINERS:
+        raise ValueError(f"Arm {a}: no container pinned for Clair3 {spec['caller_version']}")
 
 
 def alignment_id(aligner, version, preset):
@@ -109,6 +123,13 @@ def arms_with_caller(caller):
     return [a for a in RUN_ARMS if ARMS[a]["caller"] == caller]
 
 
+def arm_pattern(caller):
+    """Wildcard constraint for the Arms (configured, not just run) that use a caller, so a
+    caller's rules never match another caller's Arms."""
+    arms = [a for a, spec in ARMS.items() if spec["caller"] == caller]
+    return "|".join(map(re.escape, arms)) or "(?!)"
+
+
 def basecall_model(wildcards):
     return config["read_models"][wildcards.read_model]
 
@@ -134,3 +155,6 @@ ALIGN = WORK / "align/{sample}/{read_model}/{depth}x"
 CALL = WORK / "call/{sample}/{read_model}/{depth}x/{arm}"
 SCORE = WORK / "score/{sample}/{read_model}/{depth}x/{arm}/{mode}"
 KEYS = "{sample}.{read_model}.{depth}x"
+# Every caller writes one of these per Arm: caller, version, Calling model and its
+# checksums, and where it ran.
+CALLER_INFO = RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.caller_info.tsv"

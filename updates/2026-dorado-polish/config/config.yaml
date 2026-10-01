@@ -23,7 +23,7 @@ run:
   samples: [ATCC_25922__202309]
   read_models: [hac]
   depths: [50]
-  arms: [D]
+  arms: [A, B, C, D]
 
 # --- Method -------------------------------------------------------------------------
 read_models:  # Read model -> basecall model, written into the @RG DS for Dorado (ADR-0004)
@@ -44,6 +44,27 @@ actual_depth:  # actual depth is measured on Arm B's alignment of each Read set
 # An Arm is an aligner + caller + Calling model combination (CONTEXT.md). Arms with the
 # same aligner, version and preset share one BAM.
 arms:
+  A:  # the paper: minimap2 2.26 map-ont (its own BAM) + Clair3 1.0.5 with its bundled TF models
+    aligner: minimap2
+    aligner_version: "2.26"
+    preset: "map-ont"
+    caller: clair3
+    caller_version: "1.0.5"
+    calling_model: bundled_tf       # /opt/models/<Calling model> in the Clair3 1.0.5 image
+  B:  # the lr:hq post: the shared lr:hq BAM + Clair3 1.0.5
+    aligner: minimap2
+    aligner_version: "2.31"
+    preset: "lr:hq"
+    caller: clair3
+    caller_version: "1.0.5"
+    calling_model: bundled_tf
+  C:  # current Clair3: the shared lr:hq BAM + Clair3 2.0.3 with HKU's converted models
+    aligner: minimap2
+    aligner_version: "2.31"
+    preset: "lr:hq"
+    caller: clair3
+    caller_version: "2.0.3"
+    calling_model: hku_pytorch      # downloaded to clair3.models_dir and bind-mounted
   D:
     aligner: minimap2
     aligner_version: "2.31"
@@ -64,6 +85,28 @@ dorado:
   cpu_run:    # timing-only re-run with --device cpu (#12); checked against the main calls
     depths: [50]
     threads: 8                # same budget as Clair3
+
+clair3:  # Arms A, B and C. The Fine-tuned model is never used (ADR-0001).
+  threads: 8
+  # The paper's options for haploid bacterial calling (workflow/scripts/callers/clair3.sh at
+  # the repo root). --min_coverage stays at its default of 2 in 1.0.5 and 2.0.3, which is the
+  # Dorado --min-depth 2 (ADR-0002).
+  options: [--platform=ont, --include_all_ctgs, --haploid_precise, --no_phasing_for_fa, --enable_long_indel]
+  calling_models:   # Read model -> Calling model: the Calling model follows the Read model
+    hac: r1041_e82_400bps_hac_v430
+    sup: r1041_e82_400bps_sup_v430
+  bundled_models_dir: /opt/models       # in the Clair3 1.0.5 image (TF models)
+  models_dir: resources/clair3_models   # Arm C's HKU PyTorch models are downloaded here
+  models_url: https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch
+  # HKU publishes no checksums. These were recorded from a download on 2026-10-01 and are
+  # checked on every download.
+  model_sha256:
+    r1041_e82_400bps_hac_v430:
+      pileup.pt: 6e3b94040e7d7e722107f186076cbd348249ee384f9e9d4a3a175534023906bd
+      full_alignment.pt: bac8823367f2c571c954252f7c6fea111b3f80560d9db41c1ae8065cab2cc7a9
+    r1041_e82_400bps_sup_v430:
+      pileup.pt: 806d7439555c157f3b75f2d7fb317c15985a2be6562184bb734c72aaf68d0287
+      full_alignment.pt: 235bbde32c675bf09032a2bd410f63e521ee36e0a2ab70b9bdc1988dfe768f87
 
 max_indel: 50  # Filter chain: drop indels longer than this
 
