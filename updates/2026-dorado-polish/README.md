@@ -66,9 +66,10 @@ different" above the `material` limits in the config. Its `dorado polish` job ne
 GPU as `call_dorado`, so the Bunya profile gives it the same resources.
 
 ```sh
-snakemake -s workflow/Snakefile --workflow-profile profiles/bunya --configfile config/local.yaml \
-    --config 'dorado_aligner_check={samples: [ATCC_25922__202309], read_models: [hac, sup], depths: [50]}' \
-    dorado_aligner_check   # only this check, not the full table
+# only this check, not the full table (the target goes before --config, which takes many values)
+snakemake dorado_aligner_check -s workflow/Snakefile --workflow-profile profiles/bunya \
+    --configfile config/local.yaml \
+    --config 'dorado_aligner_check={samples: [ATCC_25922__202309], read_models: [hac, sup], depths: [50]}'
 ```
 
 (With the check configured, a plain `snakemake` run does it too.) Seam 1 runs it on the

@@ -61,6 +61,8 @@ def compare(path1, path2):
         "only_path2": len(only2),
         "filter_or_gt_differs": len(changed),
         "records_differ": len(only1) + len(only2) + len(changed),
+        "qual_differs": sum(d > 1e-6 for d in dq.values()),
+        "qual_differs_over_1": sum(d > 1 for d in dq.values()),
         "max_abs_qual_diff": dq[worst] if worst else 0.0,
         "max_qual_diff_at": worst,
         "details": {
@@ -100,6 +102,8 @@ for label, res in (("raw_vcf", raw), ("filtered_vcf", filt)):
         "only_path2",
         "filter_or_gt_differs",
         "records_differ",
+        "qual_differs",
+        "qual_differs_over_1",
         "max_abs_qual_diff",
     ):
         rows.append({"section": label, "metric": k, "var_type": "", "path1": "", "path2": "",
@@ -189,7 +193,10 @@ for label, res in (("Dorado raw", raw), ("after Filter chain", filt)):
 L += ["", "A record is identified by CHROM, POS, REF and ALT. It differs if it is in only one "
       "VCF or if its FILTER or GT differs. QUAL is compared on records in both VCFs.", ""]
 L.append(f"Largest QUAL difference: raw {raw['max_abs_qual_diff']:.4f}{where(raw)}, "
-         f"filtered {filt['max_abs_qual_diff']:.4f}{where(filt)}.")
+         f"filtered {filt['max_abs_qual_diff']:.4f}{where(filt)}. "
+         f"{raw['qual_differs']} of {raw['shared_sites']} raw records have a different QUAL, "
+         f"{raw['qual_differs_over_1']} by more than 1. (For scale: GPU and CPU runs of the same "
+         "BAM differ by up to 0.87, because the GPU runs the model in half precision, #7.)")
 for label, res in (("Dorado raw", raw), ("After the Filter chain", filt)):
     lines = detail_lines(res)
     if lines:
