@@ -12,6 +12,9 @@ rerun-incomplete: true
 printshellcmds: true
 show-failed-logs: true
 local-cores: 2
+# Resubmit a failed job up to twice. Bunya's sbatch sometimes fails with a transient
+# "Socket timed out", which otherwise stops the whole run (#9).
+retries: 2
 
 default-resources:
   slurm_account: a_uqccr
