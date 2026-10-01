@@ -1,0 +1,72 @@
+# Workflow configuration. Paths default to directories inside this update (all
+# gitignored). Put site-specific paths in config/local.yaml (gitignored; copy
+# config/local.example.yaml) and pass it with --configfile config/local.yaml.
+
+# --- Inputs -------------------------------------------------------------------------
+samples: config/samples.tsv   # sample, species, dnd, truth_url, truth_md5
+runs: config/runs.tsv         # sample, read_model, run, fastq_url, fastq_md5, fastq_bytes
+# Downloads. Reads live at <reads_dir>/<read_model>/<run>_1.fastq.gz and Truth set
+# tarballs at <truth_dir>/<sample>.tar.gz; either is downloaded only if missing.
+reads_dir: data/reads
+truth_dir: data/truth
+download:
+  method: kingfisher-ascp     # or curl (fastq_url from runs.tsv; slow from ENA FTP)
+  kingfisher: kingfisher      # binary; needs a working Aspera setup
+  attempts: 3
+
+# --- Outputs ------------------------------------------------------------------------
+work_dir: work                                        # reads, BAMs, raw calls, vcfdist output (large)
+results_dir: results                                  # tables, filtered VCFs, benchmarks (small, committed)
+
+# --- What to run --------------------------------------------------------------------
+run:
+  samples: [ATCC_25922__202309]
+  read_models: [hac]
+  depths: [50]
+  arms: [D]
+
+# --- Method -------------------------------------------------------------------------
+read_models:  # Read model -> basecall model, written into the @RG DS for Dorado (ADR-0004)
+  hac: dna_r10.4.1_e8.2_400bps_hac@v4.3.0
+  sup: dna_r10.4.1_e8.2_400bps_sup@v4.3.0
+
+qc:
+  min_length: 1000
+  min_qual: 10
+
+subsample:  # ADR-0005: rasusa aln on a primary-only alignment of the QC'd reads
+  seed: 20240102
+  alignment: {aligner: minimap2, aligner_version: "2.31", preset: "lr:hq"}
+
+actual_depth:  # actual depth is measured on Arm B's alignment of each Read set
+  alignment: {aligner: minimap2, aligner_version: "2.31", preset: "lr:hq"}
+
+# An Arm is an aligner + caller + Calling model combination (CONTEXT.md). Arms with the
+# same aligner, version and preset share one BAM.
+arms:
+  D:
+    aligner: minimap2
+    aligner_version: "2.31"
+    preset: "lr:hq"
+    caller: dorado
+    caller_version: "2.1.2"
+    calling_model: bacteria   # dorado polish --bacteria
+
+dorado:
+  bin:  # caller_version -> binary (the ONT CDN build, not a container)
+    "2.1.2": resources/dorado-2.1.2-linux-x64/bin/dorado
+  download_with: "2.1.2"      # version whose binary fetches missing models
+  models_dir: resources/dorado_models
+  models:     # Calling model -> the polishing model Dorado resolves for v4.3.0 reads
+    bacteria: dna_r10.4.1_e8.2_400bps_polish_bacterial_methylation_v5.0.0
+  device: "cuda:all"
+  min_depth: 2                # matches Clair3's --min_coverage default (ADR-0002)
+  cpu_run:    # timing-only re-run with --device cpu (#12); checked against the main calls
+    depths: [50]
+    threads: 8                # same budget as Clair3
+
+max_indel: 50  # Filter chain: drop indels longer than this
+
+vcfdist:  # ADR-0003
+  largest_variant: 50
+  credit_threshold: 1.0

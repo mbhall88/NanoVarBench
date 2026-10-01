@@ -1,0 +1,25 @@
+# Dorado polish vs Clair3: the 2026 NanoVarBench update. See PLAN.md and docs/adr/.
+#
+#   snakemake -s workflow/Snakefile --workflow-profile profiles/bunya
+#
+# Arms are config entities (config/config.yaml: arms); `run` picks which Samples, Read
+# models, Depths and Arms to run.
+
+configfile: "config/config.yaml"
+
+
+include: "rules/common.smk"
+include: "rules/acquire.smk"
+include: "rules/reads.smk"
+include: "rules/align.smk"
+include: "rules/call.smk"
+include: "rules/filter.smk"
+include: "rules/score.smk"
+include: "rules/aggregate.smk"
+
+
+rule all:
+    input:
+        rules.aggregate.output,
+        rules.versions.output,
+        dorado_cpu_targets(),

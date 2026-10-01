@@ -1,0 +1,15 @@
+sample	species	dnd	truth_url	truth_md5
+ATCC_10708__202309	Salmonella enterica	true	https://zenodo.org/api/records/10867171/files/ATCC_10708__202309.tar.gz/content	2e2d8463d3c4ac97c9284f72abf6b451
+ATCC_17802__202309	Vibrio parahaemolyticus	true	https://zenodo.org/api/records/10867171/files/ATCC_17802__202309.tar.gz/content	83b063edc463cfdba25a9ce30a442234
+ATCC_25922__202309	Escherichia coli	false	https://zenodo.org/api/records/10867171/files/ATCC_25922__202309.tar.gz/content	5b124aa615731f312b1939b554c5cd60
+ATCC_33560__202309	Campylobacter jejuni	false	https://zenodo.org/api/records/10867171/files/ATCC_33560__202309.tar.gz/content	39599e31cb95741eb18edd47c619492e
+ATCC_35221__202309	Campylobacter lari	false	https://zenodo.org/api/records/10867171/files/ATCC_35221__202309.tar.gz/content	fa7dd267965b5e10abc2c342488b350f
+ATCC_19119__202309	Listeria ivanovii	false	https://zenodo.org/api/records/10867171/files/ATCC_19119__202309.tar.gz/content	fd96288db15f3b1493b47fe0e6d56cc0
+ATCC_35897__202309	Listeria welshimeri	false	https://zenodo.org/api/records/10867171/files/ATCC_35897__202309.tar.gz/content	b411f7bbd997d0806af43a8eb3d44371
+ATCC_BAA-679__202309	Listeria monocytogenes	false	https://zenodo.org/api/records/10867171/files/ATCC_BAA-679__202309.tar.gz/content	b266cdb5d7cff95b703ae991c333948d
+BPH2947__202310	Staphylococcus aureus	false	https://zenodo.org/api/records/10867171/files/BPH2947__202310.tar.gz/content	371775c6e9466e3beab3b531831caacd
+AJ292__202310	Klebsiella variicola	false	https://zenodo.org/api/records/10867171/files/AJ292__202310.tar.gz/content	8c91b8d327c5629736df3f63c3f21380
+KPC2__202310	Klebsiella pneumoniae	false	https://zenodo.org/api/records/10867171/files/KPC2__202310.tar.gz/content	3d46e5e6aa0f049c19b23f71f568598c
+RDH275__202311	Streptococcus pyogenes	false	https://zenodo.org/api/records/10867171/files/RDH275__202311.tar.gz/content	30d2ec8845697e66538cc2aea313e719
+MMC234__202311	Streptococcus dysgalactiae	false	https://zenodo.org/api/records/10867171/files/MMC234__202311.tar.gz/content	25b38b7bcbd4c7493b2c7a9aa61839a4
+AMtb_1__202402	Mycobacterium tuberculosis	false	https://zenodo.org/api/records/10867171/files/AMtb_1__202402.tar.gz/content	1e60d320f798f788b13b1947ee5efafb

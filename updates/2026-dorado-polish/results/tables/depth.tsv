@@ -1,0 +1,6 @@
+sample	read_model	depth	contig	length	num_reads	breadth_pct	mean_depth
+ATCC_25922__202309	hac	50	chromosome	5132035	81097	99.9998	50.0632
+ATCC_25922__202309	hac	50	plasmid_1	48488	901	100	59.1044
+ATCC_25922__202309	hac	50	plasmid_2	24185	440	100	61.7803
+ATCC_25922__202309	hac	50	plasmid_3	3173	224	100	72.7403
+ATCC_25922__202309	hac	50	plasmid_4	1919	184	100	73.8484

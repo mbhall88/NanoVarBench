@@ -1,0 +1,9 @@
+.snakemake/
+work/
+# The repository's .gitignore ignores results/ everywhere; this update commits its small
+# results (tables, filtered VCFs, benchmarks), so re-include them here.
+!results/
+# Default input and tool locations (config/config.yaml), and site-specific paths.
+data/
+resources/
+config/local.yaml

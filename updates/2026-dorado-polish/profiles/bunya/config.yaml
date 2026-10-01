@@ -1,0 +1,38 @@
+# Snakemake workflow profile for Bunya (UQ) with the Slurm executor plugin.
+#   snakemake -s workflow/Snakefile --workflow-profile profiles/bunya
+executor: slurm
+jobs: 50
+software-deployment-method:
+  - apptainer
+  - conda
+apptainer-args: "--bind /scratch"
+conda-frontend: mamba
+latency-wait: 60
+rerun-incomplete: true
+printshellcmds: true
+show-failed-logs: true
+local-cores: 2
+
+default-resources:
+  slurm_account: a_uqccr
+  slurm_partition: general
+  runtime: "1h"
+  mem_mb: 4000
+
+# Dorado runs on one full H100, PCIe (gpu_cuda) or SXM (gpu_sxm): never a MIG slice
+# (bun004/bun005/bun071 only offer slices, and their gres names aren't gpu:h100). The GPU
+# partitions need a QoS; use the qos resource, since the plugin rejects --qos (and
+# --constraint) in slurm_extra. bun072 has a broken GPU. Overriding call_dorado with
+# --set-resources on the command line replaces this whole entry, not just one key.
+# Dorado used ~1.9 GB RSS and 5-7 s of GPU time per 50x Read set (#7).
+set-resources:
+  call_dorado:
+    slurm_partition: gpu_cuda,gpu_sxm
+    gres: "gpu:h100:1"
+    qos: gpu
+    slurm_extra: "'--exclude=bun072'"
+    # Else the plugin adds --ntasks-per-gpu=1 and the job's srun aborts with
+    # "SLURM_TRES_PER_TASK is mutually exclusive with --ntasks-per-gpu".
+    tasks_per_gpu: 0
+    mem_mb: 16000
+    runtime: "30m"
