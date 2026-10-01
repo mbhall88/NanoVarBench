@@ -84,6 +84,11 @@ for c in snakemake.params.combos:
         "caller": info["caller"],
         "caller_version": info["caller_version"],
         "calling_model": info["calling_model"],
+        # Dorado records its weights file's SHA256; Clair3 lists each model file's, as
+        # name=sha256;... Container digests are recorded for tools that run in one.
+        "calling_model_sha256": info.get("calling_model_sha256")
+        or info.get("calling_model_weights_sha256", ""),
+        "container": info.get("container", ""),
         "hardware": info["hardware"],
     }
 

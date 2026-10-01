@@ -19,7 +19,7 @@ def combo_inputs(c):
         "sweep_summary": f"{score('sweep')}/precision-recall-summary.tsv",
         "pass_summary": f"{score('pass')}/precision-recall-summary.tsv",
         "sweep_pr": f"{score('sweep')}/precision-recall.tsv",
-        "caller_info": str(rules.call_dorado.output.info).format(**keys),
+        "caller_info": str(CALLER_INFO).format(**keys),
         "coverage": str(rules.actual_depth.output.tsv).format(**keys),
     }
 
@@ -52,11 +52,14 @@ rule aggregate:
 
 # Tools run from a container: the command that prints each one's version.
 VERSION_COMMANDS = {
+    "minimap2-2.26": "minimap2 --version; samtools --version | sed -n 1p",
     "minimap2-2.31": "minimap2 --version; samtools --version | sed -n 1p",
     "samtools": "samtools --version | sed -n 1p",
     "bcftools": "bcftools --version | sed -n 1p",
     "seqkit": "seqkit version",
     "rasusa": "rasusa --version",
+    "clair3-1.0.5": "/opt/bin/run_clair3.sh --version",
+    "clair3-2.0.3": "/opt/bin/run_clair3.sh --version",
     "vcfdist": "vcfdist --version",
 }
 
@@ -104,6 +107,9 @@ def used_tools():
     tools = {"samtools", "bcftools", "seqkit", "rasusa", "vcfdist"}
     for spec in ALIGNMENTS.values():
         tools.add(f"{spec['aligner']}-{spec['version']}")
+    for spec in ARMS.values():
+        if spec["caller"] == "clair3":
+            tools.add(f"clair3-{spec['caller_version']}")
     return sorted(tools)
 
 

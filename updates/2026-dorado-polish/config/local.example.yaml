@@ -1,7 +1,7 @@
 # Site-specific overrides for config/config.yaml. Copy to config/local.yaml (gitignored)
 # and pass it on the command line:
 #   snakemake -s workflow/Snakefile --workflow-profile profiles/bunya --configfile config/local.yaml
-# Only the keys you set are overridden; nested mappings (download, dorado) are merged.
+# Only the keys you set are overridden; nested mappings (download, dorado, clair3) are merged.
 reads_dir: /path/to/data/reads
 truth_dir: /path/to/data/truth
 work_dir: /path/to/work
@@ -11,3 +11,5 @@ dorado:
   bin:
     "2.1.2": /path/to/dorado-2.1.2-linux-x64/bin/dorado
   models_dir: /path/to/dorado_models
+clair3:
+  models_dir: /path/to/clair3_models   # Arm C's models; must be visible inside Apptainer

@@ -1,6 +1,16 @@
 == bcftools
 image: docker://quay.io/biocontainers/bcftools@sha256:a3e0d3007ffe325c409b398f660840a3e7574d076219c6e82fc994ced87d47c3
 bcftools 1.24
+== clair3-1.0.5
+image: docker://quay.io/mbhall88/clair3@sha256:6a4c352e7d14ebb67bdad4be366dcbf6afa66cc7f0ee0b37a05cebe3f4754735
+Clair3 v1.0.5
+== clair3-2.0.3
+image: docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202
+Clair3 v2.0.3
+== minimap2-2.26
+image: docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:450ac9cf2a6a291d7ef0d3cebe29066c67edc642d325f568ec9196b8b83d51f7
+2.26-r1175
+samtools 1.17
 == minimap2-2.31
 image: docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:966a1318a02cc3cda1785ccf62a4db2390e88dd48f303befa6c4a0a89a241a49
 2.31-r1302
