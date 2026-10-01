@@ -29,7 +29,7 @@ default-resources:
 # --set-resources on the command line replaces this whole entry, not just one key.
 # Dorado used ~1.9 GB RSS and 5-7 s of GPU time per 50x Read set (#7).
 set-resources:
-  call_dorado:
+  call_dorado: &dorado_gpu
     slurm_partition: gpu_cuda,gpu_sxm
     gres: "gpu:h100:1"
     qos: gpu
@@ -39,3 +39,5 @@ set-resources:
     tasks_per_gpu: 0
     mem_mb: 16000
     runtime: "30m"
+  # The dorado aligner check's polish run (#13) is the same job, so it gets the same entry.
+  call_dorado_aligner_bam: *dorado_gpu

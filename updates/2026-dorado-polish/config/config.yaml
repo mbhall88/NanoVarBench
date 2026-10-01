@@ -25,6 +25,19 @@ run:
   depths: [50]
   arms: [A, B, C, D]
 
+# Optional check (#13) that the reheadered-minimap2 path (ADR-0004) gives the same Dorado
+# calls as `dorado aligner` + `dorado polish` without --any-bam. Empty = off. It isn't an Arm
+# and adds no rows to results.tsv: its report is written to
+# <results_dir>/dorado_aligner_check/. `snakemake ... dorado_aligner_check` runs just this.
+dorado_aligner_check:
+  samples: []       # e.g. [ATCC_25922__202309]
+  read_models: []   # e.g. [hac, sup]
+  depths: []        # e.g. [50]
+  arm: D            # the Dorado Arm whose binary, version and Calling model are used
+  material:         # the report flags the calls as materially different above either of these
+    max_records: 5            # records that differ in the filtered VCFs
+    max_best_f1_diff: 0.0005  # largest |Best F1 difference| over SNP, INDEL and ALL
+
 # --- Method -------------------------------------------------------------------------
 read_models:  # Read model -> basecall model, written into the @RG DS for Dorado (ADR-0004)
   hac: dna_r10.4.1_e8.2_400bps_hac@v4.3.0

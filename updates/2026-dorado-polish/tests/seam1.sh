@@ -5,7 +5,7 @@
 #   DORADO=/path/to/dorado-2.1.2/bin/dorado [DORADO_MODELS_DIR=dir] \
 #       [CLAIR3_MODELS_DIR=dir] [OUTDIR=dir] tests/seam1.sh [extra snakemake args]
 #
-# It covers Arms A-D. DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills
+# It covers Arms A-D, and the dorado aligner check (#13) on the fixture. DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills
 # with `dorado download` (needs internet). CLAIR3_MODELS_DIR defaults to
 # $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
 # models for Arm C and checking their SHA256s (needs internet). OUTDIR defaults to a new
@@ -46,6 +46,7 @@ run:
   read_models: [hac]
   depths: [25]
   arms: [A, B, C, D]
+dorado_aligner_check: {samples: [ATCC_25922_fixture], read_models: [hac], depths: [25]}
 dorado:
   bin: {"2.1.2": $DORADO}
   models_dir: $MODELS
@@ -63,3 +64,4 @@ snakemake -s workflow/Snakefile --configfile "$OUTDIR/seam1_config/config.yaml" 
   --show-failed-logs "$@"
 
 python3 "$HERE/check_seam1.py" "$OUTDIR" "$FIXTURE/expected_tp.tsv"
+python3 "$HERE/check_aligner_check.py" "$OUTDIR"

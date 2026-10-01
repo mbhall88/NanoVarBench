@@ -48,6 +48,32 @@ Dorado's `--min-depth 2` (ADR-0002). The Calling model follows the Read model (h
   from a download on 2026-10-01. Apptainer bind-mounts the directory (the Bunya profile binds
   `/scratch`), so it must be somewhere Apptainer can see.
 
+## dorado aligner check (#13, optional)
+
+Arm D feeds `dorado polish` a minimap2 BAM with a hand-added `@RG` line and `--any-bam`
+(ADR-0004). To check that this doesn't change Dorado's calls, list Read sets under
+`dorado_aligner_check` in the config (empty = off, and it isn't an Arm: it adds nothing to
+`results.tsv`). For each one the check aligns the Read set with `dorado aligner` 2.1.2
+(default preset `lr:hq`, its bundled minimap2), sorts and indexes the BAM, adds the same
+`@RG` line, and runs `dorado polish` **without** `--any-bam`, with the other flags unchanged.
+Nothing extra is needed to keep the `@PG` line polish looks for (`ID:aligner`): `samtools sort`
+and `samtools reheader` both keep it, and `dorado_align_sort` fails if it is missing. Both
+paths' calls go through the Filter chain and vcfdist, and `compare_aligner_paths` writes
+`results/dorado_aligner_check/<sample>/<read_model>/<depth>x/<arm>.dorado_aligner_vs_minimap2.{md,tsv}`:
+the records that differ (CHROM, POS, REF, ALT, FILTER, GT), the largest QUAL difference and
+the Best F1 and Default-PASS F1 differences for SNP, INDEL and ALL, flagged "materially
+different" above the `material` limits in the config. Its `dorado polish` job needs the same
+GPU as `call_dorado`, so the Bunya profile gives it the same resources.
+
+```sh
+snakemake -s workflow/Snakefile --workflow-profile profiles/bunya --configfile config/local.yaml \
+    --config 'dorado_aligner_check={samples: [ATCC_25922__202309], read_models: [hac, sup], depths: [50]}' \
+    dorado_aligner_check   # only this check, not the full table
+```
+
+(With the check configured, a plain `snakemake` run does it too.) Seam 1 runs it on the
+fixture.
+
 ## Requirements
 
 Snakemake 9 with the Slurm executor plugin, Apptainer, conda/mamba, and the
