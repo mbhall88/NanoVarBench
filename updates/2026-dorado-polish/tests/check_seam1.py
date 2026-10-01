@@ -114,7 +114,9 @@ expected = read_tsv(expected_path)
 # low-confidence hets (e.g. 22049: 4 ref / 19 alt reads) and `--haploid_precise` drops hets,
 # so they never reach the VCF. The eighth, 23283, is called, but its neighbours 23277 and
 # 23279 aren't, so vcfdist can't match the cluster. All three Clair3 Arms miss exactly these
-# eight with the paper's options, so it isn't a workflow fault. The Clair3 Arms must still get
+# eight with the paper's options, so it isn't a workflow fault: this is ATCC_25922's pair of
+# 7.5 kb, 96.5%-identical repeats, whose reads multi-map and leave mixed bases at the
+# variants (the eLife paper's Appendix 2, where most callers missed 45 of 47 SNP FNs there). The Clair3 Arms must still get
 # every other known variant, and Dorado must get all of them. A Clair3 Arm that starts
 # catching some of the eight passes (with a NOTE); one that misses any other variant fails.
 known_fn = {(e["CONTIG"], e["POS"], e["REF"], e["ALT"]) for e in read_tsv(known_fn_path)}

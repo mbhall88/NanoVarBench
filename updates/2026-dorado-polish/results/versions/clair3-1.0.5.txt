@@ -1,0 +1,2 @@
+image: docker://quay.io/mbhall88/clair3@sha256:6a4c352e7d14ebb67bdad4be366dcbf6afa66cc7f0ee0b37a05cebe3f4754735
+Clair3 v1.0.5
