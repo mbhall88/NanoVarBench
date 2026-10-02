@@ -16,6 +16,7 @@ include: "rules/call.smk"
 include: "rules/filter.smk"
 include: "rules/score.smk"
 include: "rules/dorado_aligner_check.smk"
+include: "rules/clair3_af_filter.smk"
 include: "rules/aggregate.smk"
 
 
@@ -25,4 +26,5 @@ rule all:
         rules.benchmarks.output,
         rules.versions.output,
         dorado_cpu_targets(),
+        af_filter_targets(),
         aligner_check_targets(),
