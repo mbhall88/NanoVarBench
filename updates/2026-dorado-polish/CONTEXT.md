@@ -77,5 +77,9 @@ An Arm scored using only the records its caller marks PASS, with no QUAL thresho
 A run made only to be timed, never scored: Dorado re-run with `--device cpu` at 50x. It appears in the benchmark table (`timing_only = true`, `device = cpu`) and never in `results.tsv`.
 _Avoid_: CPU run (unqualified; Clair3 only runs on CPU)
 
+**AF filter**:
+An extra analysis (#20), not an Arm: Clair3 run without `--haploid_precise`, each het call then made homozygous ALT when its allele frequency (`FORMAT/AF`) is at least the AF threshold and homozygous REF otherwise, before the Filter chain. Scored apart from `results.tsv`.
+_Avoid_: AF Arm, haploid filter
+
 **F1 Q-score**:
 F1 on a Phred scale, −10·log10(1 − F1). A perfect F1 is capped at Q60, the resolution of vcfdist's 6-decimal F1.

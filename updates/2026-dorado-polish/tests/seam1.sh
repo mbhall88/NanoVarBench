@@ -10,6 +10,9 @@
 # 5% of each Depth. READ_MODELS (default "hac sup") and DEPTHS pick a subset for a quicker run.
 # The Dorado CPU re-run is only done at the largest Depth, and the dorado aligner check
 # (#13) on hac at 25x when both are in the run.
+# The AF filter analysis (#20) runs for Arm C on every Read set at AF_THRESHOLDS (default
+# "0.5 0.8"), and a dry-run with a fresh work_dir reading this run's (input_work_dir) checks
+# that only its own jobs are scheduled.
 # DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills with
 # `dorado download` (needs internet). CLAIR3_MODELS_DIR defaults to
 # $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
@@ -35,6 +38,7 @@ ALIGNER_CHECK=
 if [[ " $READ_MODELS " == *" hac "* && " $DEPTHS " == *" 25 "* ]]; then
   ALIGNER_CHECK="{samples: [ATCC_25922_fixture], read_models: [hac], depths: [25]}"
 fi
+AF_THRESHOLDS=${AF_THRESHOLDS:-0.5 0.8}
 yaml_list() { local out=; for x in "$@"; do out+="${out:+, }$x"; done; echo "[$out]"; }
 echo "Seam 1 output: $OUTDIR"
 
@@ -64,6 +68,7 @@ run:
   depths: $(yaml_list $DEPTHS)
   arms: [A, B, C, D]
 dorado_aligner_check: ${ALIGNER_CHECK:-{\}}
+clair3_af_filter: {arms: [C], thresholds: $(yaml_list $AF_THRESHOLDS), reference_arm: D}
 dorado:
   bin: {"2.1.2": $DORADO}
   models_dir: $MODELS
@@ -83,3 +88,18 @@ snakemake -s workflow/Snakefile --configfile "$OUTDIR/seam1_config/config.yaml" 
 python3 "$HERE/check_seam1.py" "$OUTDIR" "$FIXTURE/expected_tp.tsv" \
   --read-models $READ_MODELS --depths $DEPTHS --cpu-depth "$CPU_DEPTH"
 if [ -n "$ALIGNER_CHECK" ]; then python3 "$HERE/check_aligner_check.py" "$OUTDIR"; fi
+
+# The AF filter reusing this run's Read sets, alignments and scores from a fresh work_dir: a
+# dry-run, whose job counts check_af_filter.py reads.
+cat > "$OUTDIR/seam1_config/af_reuse.yaml" <<YAML
+work_dir: $OUTDIR/af_reuse/work
+results_dir: $OUTDIR/af_reuse/results
+clair3_af_filter: {arms: [C], thresholds: $(yaml_list $AF_THRESHOLDS), reference_arm: D, input_work_dir: $OUTDIR/work}
+YAML
+snakemake clair3_af_filter -n -s workflow/Snakefile \
+  --configfile "$OUTDIR/seam1_config/config.yaml" "$OUTDIR/seam1_config/af_reuse.yaml" \
+  --software-deployment-method apptainer conda \
+  --conda-prefix "$UPDATE/.snakemake/conda" --apptainer-prefix "$UPDATE/.snakemake/singularity" \
+  > "$OUTDIR/af_reuse.dry_run.txt"
+python3 "$HERE/check_af_filter.py" "$OUTDIR" --arms C --reference-arm D --thresholds $AF_THRESHOLDS \
+  --read-models $READ_MODELS --depths $DEPTHS --reuse-dry-run "$OUTDIR/af_reuse.dry_run.txt"

@@ -51,3 +51,10 @@ set-resources:
     constraint: epyc5
   call_clair3: *timed_cpu
   call_dorado_cpu: *timed_cpu
+
+# The AF filter's small per-threshold jobs (#20) take seconds each, so each threshold's AF
+# filter, Filter chain and both vcfdist runs go to Slurm as one job.
+groups:
+  af_filter: clair3_af_score
+  filter_calls_af: clair3_af_score
+  vcfdist_af: clair3_af_score

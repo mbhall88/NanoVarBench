@@ -129,6 +129,60 @@ snakemake dorado_aligner_check -s workflow/Snakefile --workflow-profile profiles
 (With the check configured, a plain `snakemake` run does it too.) Seam 1 runs it on the
 fixture.
 
+## AF filter (#20, optional)
+
+`--haploid_precise` drops every het call, and in repeats Clair3 calls the true ALT as a
+low-confidence het when reads from the other copy mix in (#6). The AF filter tests whether
+keeping those hets and resolving them by allele frequency closes Clair3's SNP gap to Dorado.
+It isn't an Arm and changes nothing in `results.tsv`. For each Clair3 Arm listed under
+`clair3_af_filter.arms` (empty = off), on every Read set in `run`:
+
+1. Clair3 runs on the Arm's alignment with the Arm's version, Calling model and options, minus
+   `--haploid_precise`, so it writes diploid genotypes (`call_clair3_af`).
+2. For each AF threshold in `clair3_af_filter.thresholds` (0.5 to 0.8 in steps of 0.05),
+   `af_filter` ([workflow/scripts/af_filter.py](workflow/scripts/af_filter.py)) makes each het
+   (0/1, or 1/2) homozygous for the ALT in its genotype with the highest `FORMAT/AF` when that
+   AF is at least the threshold, and homozygous REF otherwise. Hom calls are left alone.
+3. The result goes through the Filter chain and vcfdist with the Arms' settings (QUAL sweep and
+   PASS only).
+
+It uses Clair3's diploid output, not `--haploid_sensitive`. Both recover the repeat SNPs (#6),
+but `--haploid_sensitive` writes 0/1 and 1/1 alike as `1` and drops multi-allelic (1/2) sites
+(Clair3's `CallVariants.py`), so the filter couldn't tell a het from a hom call.
+
+`clair3_af_filter_tables` writes two tables:
+
+- `results/tables/clair3_af_filter.tsv`: one row per Sample x Read model x Depth x Arm x
+  `calls` x `af_threshold` x variant type x scoring mode, with the columns of `results.tsv`'s
+  scores. `calls` is `af_filter` at each threshold, or `main` for the Arm's own
+  `--haploid_precise` calls and for `reference_arm` (Arm D), copied from their scores so the
+  table stands alone. `scoring_mode` is `sweep_best` (Best F1) or `default_pass`.
+- `results/tables/clair3_af_filter_summary.tsv`: the same over the Samples. For each Arm,
+  `calls`, threshold, Read model, Depth, variant type and scoring mode: the median, min and
+  max F1, the summed FN and FP, and for the `af_filter` rows the median F1 change from the
+  Arm's own calls (with how many Samples are better, tied and worse), `n_best` (Samples where
+  this threshold is the best one), `median_loss_vs_best_threshold` (what using this one
+  threshold costs against each Sample's best), and `gap_to_reference_closed`: the share of the
+  gap in median F1 between the Arm's own calls and the reference Arm that this closes, when
+  the reference Arm is ahead.
+
+To run it on a finished run's Read sets without re-making them, set
+`clair3_af_filter.input_work_dir` to that run's `work_dir`, and give this run a new
+`work_dir` and `results_dir`. Its BAMs, Mutated references, Truth sets and the Arms' scores are
+then read from there, so only the analysis' own jobs run. Check with `-n` first:
+
+```sh
+# my_af_filter.yaml sets work_dir, results_dir, run, and
+#   clair3_af_filter: {arms: [A, C], input_work_dir: /path/to/full/run/work}
+snakemake clair3_af_filter -s workflow/Snakefile --workflow-profile profiles/bunya \
+    --configfile config/local.yaml my_af_filter.yaml -n
+```
+
+The Bunya profile groups each threshold's `af_filter`, `filter_calls_af` and two
+`vcfdist_af` jobs into one Slurm job, since each takes seconds. `call_clair3_af` isn't timed,
+so it isn't pinned to the timed CPU nodes. Seam 1 runs it for Arm C on the fixture, then
+checks that a fresh `work_dir` reading the fixture run's schedules only these jobs.
+
 ## Requirements
 
 Snakemake 9 with the Slurm executor plugin, Apptainer, conda/mamba, and the
@@ -177,6 +231,13 @@ DORADO=/path/to/dorado DORADO_MODELS_DIR=/path/to/models tests/seam1.sh
 The fixture's reads (`reads.hac.fastq.gz`, `reads.sup.fastq.gz`, about 1.8 MB each) are the
 real ATCC_25922 reads for the window, thinned to an even ~52x; `tests/fixture/make_fixture.sh`
 records how they were made.
+
+Seam 1 also runs the AF filter for Arm C at `AF_THRESHOLDS` (default 0.5 and 0.8), and
+`tests/check_af_filter.py` checks it: Clair3 ran without a haploid mode, every het was resolved
+by its AF and every hom call left alone, the tables' main rows match `results.tsv`, the
+summary follows the per-Sample table, the AF filter recovers repeat SNPs that
+`--haploid_precise` drops at 50x, and reusing the run's `work_dir` schedules only the AF
+filter's jobs.
 
 Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
 precision-recall curves, `samtools coverage` output and benchmark files
