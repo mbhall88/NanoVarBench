@@ -1,0 +1,7 @@
+READ_MODEL	CALLER	CONTIG	POS	REF	ALT
+hac	clair3	chromosome	20016	G	GC
+hac	clair3	chromosome	22629	T	A
+hac	clair3	chromosome	22635	A	T
+hac	clair3	chromosome	23277	T	G
+hac	dorado	chromosome	20016	G	GC
+sup	clair3	chromosome	21972	G	A
