@@ -32,12 +32,14 @@ rule filter_calls:
         ENVS / "filter.yaml"
     params:
         max_indel=config["max_indel"],
+        site_paths=lambda wildcards: site_path_sed(),  # a function, so its {placeholders} aren't read as wildcards
     shell:
         """
         exec 2> {log}
         contigs=$(mktemp -u).contigs.txt
         header=$(mktemp -u).header.txt
-        trap 'rm -f $contigs $header' EXIT
+        tmp_vcf={output.vcf}.tmp.vcf.gz  # beside the output, so the header doesn't record $TMPDIR
+        trap 'rm -f $contigs $header $tmp_vcf' EXIT
 
         # bcftools reheader only adds contigs that appear in the VCF, we want all contigs
         awk '{{print "##contig=<ID="$1",length="$2">"}}' {input.faidx} > "$contigs"  # make contig lines with all contigs
@@ -54,6 +56,9 @@ rule filter_calls:
             bcftools filter -e 'abs(ILEN)>{params.max_indel} || ALT="*"' |  # remove long indels or sites with unobserved alleles
             bcftools +setGT - -- -t a -n c:M |                              # make genotypes haploid e.g., 1/1 -> 1
             bcftools sort |                                                 # sort VCF
-            bcftools view -i 'GT="A"' -o {output.vcf})                      # remove non-alt alleles and write index
+            bcftools view -i 'GT="A"' -o "$tmp_vcf")                        # remove non-alt alleles
+        # The header records each command's input paths: swap site directories for placeholders
+        bcftools view --no-version -h "$tmp_vcf" | sed -e '{params.site_paths}' > "$header"
+        bcftools reheader -h "$header" -o {output.vcf} "$tmp_vcf"
         bcftools index -f {output.vcf}
         """

@@ -1,4 +1,5 @@
 import csv
+import os
 import re
 from pathlib import Path
 
@@ -37,6 +38,30 @@ RESULTS = Path(config["results_dir"])
 LOGS = WORK / "logs"
 READS_DIR = Path(config["reads_dir"])
 TRUTH_DIR = Path(config["truth_dir"])
+
+
+def site_path_sed():
+    """A sed script that swaps this site's directories for placeholders (e.g. {work_dir}),
+    applied to the VCF headers the workflow commits, so they carry no absolute site paths.
+    Container paths such as /opt/models are left alone."""
+    dirs = {
+        "{work_dir}": config["work_dir"],
+        "{results_dir}": config["results_dir"],
+        "{reads_dir}": config["reads_dir"],
+        "{truth_dir}": config["truth_dir"],
+        "{dorado_models_dir}": config["dorado"]["models_dir"],
+        "{clair3_models_dir}": config.get("clair3", {}).get("models_dir"),
+        "{update_dir}": str(WORKFLOW_DIR.parent),
+    }
+    pairs = set()
+    for placeholder, d in dirs.items():
+        if d:
+            for form in (os.path.abspath(d), os.path.realpath(d)):
+                pairs.add((form.rstrip("/"), placeholder))
+    # Longest first, so a directory inside another is replaced before its parent.
+    pairs = sorted(pairs, key=lambda pair: -len(pair[0]))
+    escape = lambda path: re.sub(r"([.\[\]*^$\\#])", r"\\\1", path)
+    return "; ".join(f"s#{escape(path)}#{placeholder}#g" for path, placeholder in pairs)
 
 
 def read_tsv(path):

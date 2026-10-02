@@ -106,7 +106,8 @@ of the rule's env, so the Filter chain runs the wrong Python (`No module named '
 
 `profiles/bunya` submits to Slurm on Bunya: CPU rules (including `call_dorado_cpu`) go to
 `general`, and `call_dorado` goes to one full H100 on `gpu_cuda` or `gpu_sxm`. Large
-intermediates go to `work_dir`, and small results go to `results_dir`, which is committed.
+intermediates go to `work_dir`, and small results go to `results_dir`. Neither is committed:
+only the full run's final aggregated tables are, at the end (#15).
 
 ## Test
 

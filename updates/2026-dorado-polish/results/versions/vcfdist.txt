@@ -1,2 +1,0 @@
-image: docker://timd1/vcfdist@sha256:d8b14a999a290f3b21dd4cde3bf52f2ad814b252823b8a4d9a01b548ae71dee3
-vcfdist v2.6.4

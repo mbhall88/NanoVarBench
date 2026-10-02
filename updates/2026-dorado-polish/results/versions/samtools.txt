@@ -1,2 +1,0 @@
-image: docker://quay.io/biocontainers/samtools@sha256:a130447589651ed09252aa95a5e4f4132942cdb54d835d81a04a9a930d656561
-samtools 1.24

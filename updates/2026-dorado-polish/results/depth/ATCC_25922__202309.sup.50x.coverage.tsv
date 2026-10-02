@@ -1,6 +1,0 @@
-#rname	startpos	endpos	numreads	covbases	coverage	meandepth	meanbaseq	meanmapq
-chromosome	1	5132035	79144	5131999	99.9993	50.253	37.6	59.5
-plasmid_1	1	48488	765	48488	100	60.9092	36.9	59.9
-plasmid_2	1	24185	381	24185	100	63.1766	36	59.9
-plasmid_3	1	3173	202	3173	100	70.7784	36.3	59.2
-plasmid_4	1	1919	178	1919	100	68.1084	35.3	57.7

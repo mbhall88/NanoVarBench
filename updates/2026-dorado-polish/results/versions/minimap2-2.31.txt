@@ -1,3 +1,0 @@
-image: docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:966a1318a02cc3cda1785ccf62a4db2390e88dd48f303befa6c4a0a89a241a49
-2.31-r1302
-samtools 1.23.1

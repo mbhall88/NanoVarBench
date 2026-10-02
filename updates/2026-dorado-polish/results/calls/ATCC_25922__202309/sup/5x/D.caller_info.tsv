@@ -1,2 +1,0 @@
-caller	caller_version	calling_model	calling_model_weights_sha256	device	hardware	host
-dorado	2.1.2+8b8fc5d	dna_r10.4.1_e8.2_400bps_polish_bacterial_methylation_v5.0.0	e5b83a25a2f84c9f7c0c8c3b53986be05391559e3ad483ee3caaddda3f0bb521	cuda:all	NVIDIA H100 80GB HBM3, 610.43.02	bun119
