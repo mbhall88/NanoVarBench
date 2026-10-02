@@ -1,5 +1,7 @@
-# Calling: one rule per caller family (Dorado, Clair3), parameterised by Arm. Each writes the
-# Arm's raw calls and a caller_info TSV (CALLER_INFO) that the aggregation reads.
+# Calling: one rule per caller family (Dorado, Clair3), parameterised by Arm. Each rule only
+# runs its tool, since Snakemake's benchmark: directive times the whole job script (#12). What
+# ran (caller, version, Calling model, container, hardware) is read from the config by the
+# aggregation, not recorded per job.
 
 DORADO = config["dorado"]
 DORADO_MODELS_DIR = Path(DORADO["models_dir"])
@@ -15,6 +17,10 @@ def dorado_bin(arm):
 
 def dorado_model(arm):
     return DORADO["models"][ARMS[arm]["calling_model"]]
+
+
+DORADO_THREADS = 8
+DORADO_DEVICE = "cpu" if DORADO["device"] == "cpu" else "gpu"  # for the benchmark hardware
 
 
 rule download_dorado_model:
@@ -43,8 +49,7 @@ localrules:
 
 rule call_dorado:
     """dorado polish --vcf on the RG-reheadered minimap2 BAM (ADR-0004), with --min-depth 2
-    to match Clair3 (ADR-0002). Records the Dorado version, the Calling model it resolved
-    and the device it ran on."""
+    to match Clair3 (ADR-0002). Only the tool runs here: the job is timed (#12)."""
     input:
         bam=lambda wc: ALIGN / f"{arm_alignment(wc.arm)}.rg.bam",
         bai=lambda wc: ALIGN / f"{arm_alignment(wc.arm)}.rg.bam.bai",
@@ -53,14 +58,13 @@ rule call_dorado:
         model=lambda wc: DORADO_MODELS_DIR / dorado_model(wc.arm) / "weights.pt",
     output:
         vcf=CALL / "variants.vcf",
-        info=CALLER_INFO,
     wildcard_constraints:
         arm=arm_pattern("dorado"),
     log:
         LOGS / "call_dorado/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
-        RESULTS / "benchmarks/call_dorado/{sample}.{read_model}.{depth}x.{arm}.tsv"
-    threads: 8
+        BENCH_DORADO
+    threads: DORADO_THREADS
     resources:
         mem_mb=16000,
         runtime=30,
@@ -78,38 +82,24 @@ rule call_dorado:
             --min-depth {params.min_depth} {params.any_bam} --ignore-read-groups \
             --models-directory {params.models_dir} --threads {threads} \
             --device {params.device} -o "$outdir" -v > "$outdir/stdout.txt" 2> {log}
-
-        version=$({params.bin} --version 2>&1 | tail -n 1)
-        model=$(sed -n 's/.*Resolved model from input data: \\([^ ]*\\).*/\\1/p' {log} | tail -n 1)
-        [ -n "$model" ] || {{ echo "could not find the resolved model in {log}" >&2; exit 1; }}
-        weights_sha256=$(sha256sum {params.models_dir}/"$model"/weights.pt | cut -d' ' -f1)
-        if [ "{params.device}" = cpu ]; then
-            hardware="cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | sed 's/^ *//')"
-        else
-            hardware=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader | sed -n 1p)
-        fi
-        mkdir -p "$(dirname {output.info})"
-        printf 'caller\\tcaller_version\\tcalling_model\\tcalling_model_weights_sha256\\tdevice\\thardware\\thost\\n' > {output.info}
-        printf 'dorado\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "$version" "$model" "$weights_sha256" \
-            "{params.device}" "$hardware" "$(hostname)" >> {output.info}
         """
 
 
 # Timing-only CPU run of the same Dorado command (#12), on the Depths in dorado.cpu_run.
 # It isn't scored: compare_dorado_devices checks its calls against call_dorado's instead.
 CPU_RUN = DORADO.get("cpu_run") or {}
+DORADO_CPU_THREADS = CPU_RUN.get("threads", 8)
 CALL_CPU = WORK / "call_cpu/{sample}/{read_model}/{depth}x/{arm}"
 
 
 use rule call_dorado as call_dorado_cpu with:
     output:
         vcf=CALL_CPU / "variants.vcf",
-        info=RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.cpu.caller_info.tsv",
     log:
         LOGS / "call_dorado_cpu/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
-        RESULTS / "benchmarks/call_dorado_cpu/{sample}.{read_model}.{depth}x.{arm}.tsv"
-    threads: CPU_RUN.get("threads", 8)
+        BENCH_DORADO_CPU
+    threads: DORADO_CPU_THREADS
     resources:
         mem_mb=16000,
         runtime=120,
@@ -246,8 +236,7 @@ localrules:
 
 rule call_clair3:
     """Clair3 on the Arm's alignment: 8 CPU threads, haploid precise (the paper's options).
-    Records the version it ran, the Calling model, the SHA256 of each of the model's files
-    and the container digest."""
+    Only the tool runs here: the job is timed (#12)."""
     input:
         bam=lambda wc: ALIGN / f"{arm_alignment(wc.arm)}.bam",
         bai=lambda wc: ALIGN / f"{arm_alignment(wc.arm)}.bam.bai",
@@ -256,22 +245,19 @@ rule call_clair3:
         model_files=clair3_model_files,
     output:
         vcf=CALL / "variants.vcf.gz",
-        info=CALLER_INFO,
     wildcard_constraints:
         arm=arm_pattern("clair3"),
     log:
         LOGS / "call_clair3/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
-        RESULTS / "benchmarks/call_clair3/{sample}.{read_model}.{depth}x.{arm}.tsv"
+        BENCH_CLAIR3
     threads: CLAIR3["threads"]
     resources:
         mem_mb=16000,
         runtime=120,
     params:
-        model=clair3_model,
         model_path=clair3_model_path,
         options=" ".join(CLAIR3["options"]),
-        container=clair3_container,
     container:
         clair3_container
     shell:
@@ -286,15 +272,6 @@ rule call_clair3:
             --threads={threads} --model_path={params.model_path} --output="$outdir" \
             --sample_name={wildcards.sample} {params.options}
         mv "$outdir/merge_output.vcf.gz" {output.vcf}
-
-        version=$(/opt/bin/run_clair3.sh --version 2>&1 | tail -n 1 | sed -E 's/^Clair3 v?//')
-        model_sha256=$(cd {params.model_path} && sha256sum $(ls -p | grep -v /) | sort -k2 \
-            | awk '{{printf "%s%s=%s", (NR > 1 ? ";" : ""), $2, $1}}')
-        hardware="cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | sed 's/^ *//')"
-        mkdir -p "$(dirname {output.info})"
-        printf 'caller\tcaller_version\tcalling_model\tcalling_model_sha256\tcontainer\tdevice\thardware\thost\n' > {output.info}
-        printf 'clair3\t%s\t%s\t%s\t%s\tcpu\t%s\t%s\n' "$version" "{params.model}" "$model_sha256" \
-            "{params.container}" "$hardware" "$(hostname)" >> {output.info}
         """
 
 

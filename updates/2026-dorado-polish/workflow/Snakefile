@@ -22,6 +22,7 @@ include: "rules/aggregate.smk"
 rule all:
     input:
         rules.aggregate.output,
+        rules.benchmarks.output,
         rules.versions.output,
         dorado_cpu_targets(),
         aligner_check_targets(),

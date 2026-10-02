@@ -113,7 +113,6 @@ use rule call_dorado as call_dorado_aligner_bam with:
         model=lambda wc: DORADO_MODELS_DIR / dorado_model(wc.arm) / "weights.pt",
     output:
         vcf=CHECK_CALL / "variants.vcf",
-        info=CHECK_OUT / "{arm}.dorado_aligner.caller_info.tsv",
     log:
         LOGS / "call_dorado_aligner_bam/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
@@ -172,8 +171,6 @@ rule compare_aligner_paths:
         raw2=rules.call_dorado_aligner_bam.output.vcf,
         filter1=lambda wc: str(rules.filter_calls.output.vcf).format(**check_keys(wc)),
         filter2=rules.filter_calls_dorado_aligner.output.vcf,
-        info1=lambda wc: str(CALLER_INFO).format(**check_keys(wc)),
-        info2=rules.call_dorado_aligner_bam.output.info,
         sweep1=lambda wc: str(rules.vcfdist.output.summary).format(**check_keys(wc), mode="sweep"),
         pass1=lambda wc: str(rules.vcfdist.output.summary).format(**check_keys(wc), mode="pass"),
         sweep2=lambda wc: str(rules.vcfdist_dorado_aligner.output.summary).format(
@@ -194,6 +191,10 @@ rule compare_aligner_paths:
         runtime=10,
     params:
         material=CHECK_MATERIAL,
+        # Both paths run the same Dorado, Calling model and device, from the config.
+        dorado_version=lambda wc: str(ARMS[wc.arm]["caller_version"]),
+        calling_model=lambda wc: dorado_model(wc.arm),
+        device=DORADO["device"],
     script:
         "../scripts/compare_aligner_paths.py"
 

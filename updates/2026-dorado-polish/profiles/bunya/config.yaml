@@ -22,15 +22,21 @@ default-resources:
   runtime: "1h"
   mem_mb: 4000
 
-# Dorado runs on one full H100, PCIe (gpu_cuda) or SXM (gpu_sxm): never a MIG slice
-# (bun004/bun005/bun071 only offer slices, and their gres names aren't gpu:h100). The GPU
-# partitions need a QoS; use the qos resource, since the plugin rejects --qos (and
-# --constraint) in slurm_extra. bun072 has a broken GPU. Overriding call_dorado with
-# --set-resources on the command line replaces this whole entry, not just one key.
-# Dorado used ~1.9 GB RSS and 5-7 s of GPU time per 50x Read set (#7).
+# Dorado runs on one full H100, never a MIG slice or an A100 (bun004/bun005/bun071 only offer
+# slices, and their gres names aren't gpu:h100). The GPU partitions need a QoS; use the qos
+# resource, since the plugin rejects --qos (and --constraint) in slurm_extra. bun072 has a
+# broken GPU. Overriding call_dorado with --set-resources on the command line replaces this
+# whole entry, not just one key. Dorado used ~1.9 GB RSS and 5-7 s of GPU time per 50x Read
+# set (#7).
+#
+# Timings (#12) are only comparable on one piece of hardware, so call_dorado is pinned to the
+# H100 SXM partition (gpu_sxm: bun118-120, "NVIDIA H100 80GB HBM3"). gpu_cuda's H100s are PCIe,
+# a different part. The CPU steps that are timed (alignment, Clair3 and the Dorado CPU re-run)
+# are pinned to the same CPU generation, the epyc5 nodes (AMD EPYC 9745). These pins are what
+# make benchmark_hardware in config/config.yaml true; nothing in the jobs checks it.
 set-resources:
   call_dorado: &dorado_gpu
-    slurm_partition: gpu_cuda,gpu_sxm
+    slurm_partition: gpu_sxm
     gres: "gpu:h100:1"
     qos: gpu
     slurm_extra: "'--exclude=bun072'"
@@ -41,3 +47,7 @@ set-resources:
     runtime: "30m"
   # The dorado aligner check's polish run (#13) is the same job, so it gets the same entry.
   call_dorado_aligner_bam: *dorado_gpu
+  align: &timed_cpu
+    constraint: epyc5
+  call_clair3: *timed_cpu
+  call_dorado_cpu: *timed_cpu

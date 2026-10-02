@@ -1,4 +1,4 @@
-"""Aggregate vcfdist summaries, actual depth and caller info into tidy tables.
+"""Aggregate vcfdist summaries and actual depth into tidy tables.
 
 results.tsv has one row per Sample x Arm x Read model x Depth x variant type x scoring
 mode (the #6 contract):
@@ -7,6 +7,10 @@ mode (the #6 contract):
 Both use vcfdist's precision, recall, F1 and counts. F1 Q-score is computed here as
 -10*log10(1 - F1) from the F1 column, which has 6 decimal places, so a perfect F1 is capped
 at Q60 (1 - F1 is floored at 1e-6). vcfdist's own F1_QSCORE column writes 100 for F1 = 1.
+
+The caller, its version, the Calling model, the container digest and the hardware of each
+row come from the config (snakemake.params.provenance), not from files the jobs write: the
+timed jobs only run their tool.
 
 depth.tsv has the actual per-contig depth of each Read set, and pr_curves.tsv the QUAL
 sweep's precision-recall curve for each Read set and Arm: one row per QUAL threshold, keyed
@@ -48,7 +52,7 @@ read_models = snakemake.params.read_models
 
 results, depths, curves = [], [], []
 seen_read_sets = set()
-for c in snakemake.params.combos:
+for c, provenance in zip(snakemake.params.combos, snakemake.params.provenance):
     sample, read_model, depth, arm = c["sample"], c["read_model"], int(c["depth"]), c["arm"]
     keys = {"sample": sample, "read_model": read_model, "depth": depth, "arm": arm}
 
@@ -75,7 +79,6 @@ for c in snakemake.params.combos:
                 }
             )
 
-    info = read_tsv(c["caller_info"])[0]
     arm_cfg = arms[arm]
     sample_row = samples[sample]
     common = {
@@ -93,15 +96,7 @@ for c in snakemake.params.combos:
         "aligner": arm_cfg["aligner"],
         "aligner_version": arm_cfg["aligner_version"],
         "preset": arm_cfg["preset"],
-        "caller": info["caller"],
-        "caller_version": info["caller_version"],
-        "calling_model": info["calling_model"],
-        # Dorado records its weights file's SHA256; Clair3 lists each model file's, as
-        # name=sha256;... Container digests are recorded for tools that run in one.
-        "calling_model_sha256": info.get("calling_model_sha256")
-        or info.get("calling_model_weights_sha256", ""),
-        "container": info.get("container", ""),
-        "hardware": info["hardware"],
+        **provenance,
     }
 
     for mode, (summary_key, threshold) in MODES.items():

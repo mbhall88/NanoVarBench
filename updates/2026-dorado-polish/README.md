@@ -26,16 +26,64 @@ The workflow runs all four Arms end to end: A, B and C with Clair3 (#9) and D wi
    sets FILTER as well as Dorado. `f1_qscore` is −10·log10(1 − F1), capped at Q60 for a
    perfect F1. `pr_curves.tsv` has the QUAL sweep's precision and recall at each threshold,
    keyed and named like `results.tsv`. `dnd_sample` flags the dnd samples (`dnd` in
-   [config/samples.tsv](config/samples.tsv)). Each Arm's `calls/.../<arm>.caller_info.tsv`
-   records the caller version, Calling model, the SHA256 of its files, and (for Clair3) the
-   container digest, and `results.tsv` carries them too;
+   [config/samples.tsv](config/samples.tsv)). Each row also carries its Arm's `caller`,
+   `caller_version`, `calling_model`, `container` (the pinned digest, for Clair3) and
+   `hardware`. They come from the config (the Arm, `dorado.models`, `clair3.calling_models`,
+   the pinned `CONTAINERS` and `benchmark_hardware`), not from files the jobs write. The
+   jobs run only their tool, so they can be timed cleanly (see Benchmarks);
 7. re-runs Dorado with `--device cpu` on the Depths in `dorado.cpu_run` (50x) for the
-   runtime comparison (#12). These runs are timing only: they aren't scored, and
-   `results/calls/.../<arm>.cpu_vs_main.tsv` checks their calls match the main run's.
-   Clair3 only runs on CPU, so it has no re-run.
+   runtime comparison (#12). These runs are timing only: they aren't scored and never appear
+   in `results.tsv`, and `results/calls/.../<arm>.cpu_vs_main.tsv` checks their calls match
+   the main run's. Clair3 only runs on CPU, so it has no re-run;
+8. writes `results/tables/benchmarks.tsv` (see Benchmarks below).
 
 Arms are config entities (`arms:` in [config/config.yaml](config/config.yaml)); `run:`
 picks the Samples, Read models, Depths and Arms.
+
+## Benchmarks (#12)
+
+`results/tables/benchmarks.tsv` is Table 1: one row per Sample x Read model x Depth x Arm x
+step x `timing_only`, built by the `benchmarks` rule from Snakemake's `benchmark:` files
+(`results/benchmarks/`). The timed rules (`align`, `call_dorado`, `call_dorado_cpu`,
+`call_clair3`) only run their tool, so `wall_time_s` is the tool's: no version calls, weight
+hashing, `nvidia-smi` or `hostname` run in a job, and there is no separate timing of the
+command.
+
+- **Steps.** `align` is the Arm's alignment (minimap2 with `samtools sort` and `index`). Arms
+  with the same aligner, version and preset share one BAM, so B, C and D carry the same
+  alignment row and Arm A has its own; don't add alignment rows across Arms. `call` is the
+  calling step alone: Clair3 (Arms A-C, 8 threads) or `dorado polish` (Arm D, on the GPU).
+  Everything else is left out: read QC, subsampling, the `@RG` reheader, the Filter chain and
+  scoring. Arm D at the Depths in `dorado.cpu_run` (50x) has a second `call` row with
+  `timing_only = true`: `dorado polish --device cpu` on 8 threads, the same as Clair3. It
+  isn't scored and isn't in `results.tsv`.
+- **Columns.** The keys, `step`, `timing_only`, `tool`, `tool_version`, `alignment`, `device`
+  (`gpu` or `cpu`), `hardware` (the GPU model, or `CPU: <model>`), `threads`, then
+  `wall_time_s`, `max_rss_mb`, `max_vms_mb`, `max_uss_mb`, `max_pss_mb`, `cpu_time_s`,
+  `mean_cpu_pct`, `io_in_mb` and `io_out_mb`. Times are in seconds and memory in MB, as in
+  Snakemake's benchmark files. `max_rss_mb` is the whole job's.
+- **Hardware is a config value.** `hardware` is `benchmark_hardware` in
+  [config/config.yaml](config/config.yaml) for the row's `device` (`gpu: "NVIDIA H100 80GB
+  HBM3"`, `cpu: "AMD EPYC 9745"`), and `threads` is the rule's configured threads. Nothing
+  is measured in a job, so there are no host or driver columns. The hardware was confirmed
+  once, outside the workflow: `nvidia-smi` on bun118 and bun119 gave NVIDIA H100 80GB HBM3
+  with driver 610.43.02, and the `epyc5` nodes are AMD EPYC 9745. The Bunya profile pins it.
+- **One piece of hardware.** `call_dorado` is pinned to one H100 variant, the **H100 SXM**
+  (`gpu_sxm`, "NVIDIA H100 80GB HBM3"), never an A100 or a MIG slice. `gpu_cuda`'s H100s are
+  PCIe, a different part with different speed, so letting `call_dorado` pick either would mix
+  hardware. SXM was also the partition with free H100s when the benchmark was run. The timed
+  CPU steps (alignment, Clair3 and the Dorado CPU re-run) are pinned to the `epyc5` nodes
+  (AMD EPYC 9745). The profile's partition and constraint are what guarantee this; the
+  workflow doesn't check it. If you change them, change `benchmark_hardware` to match. Nodes
+  are shared, so CPU timings include whatever else ran on the node.
+- **Re-timing.** To re-time the calling steps, force just those rules (and `align` to time
+  the alignment too). The targets go before `--config`, which takes the rest of the line:
+
+  ```sh
+  snakemake -s workflow/Snakefile --workflow-profile profiles/bunya --configfile config/local.yaml \
+      --forcerun align call_dorado call_dorado_cpu call_clair3 \
+      --config 'run={samples: [ATCC_25922__202309], read_models: [hac, sup], depths: [5, 10, 25, 50], arms: [A, B, C, D]}'
+  ```
 
 ## Clair3 (Arms A, B and C)
 
@@ -113,11 +161,12 @@ only the full run's final aggregated tables are, at the end (#15).
 
 Seam 1 runs the whole workflow on a 40 kb fixture (tests/fixture/) for Arms A-D, on a hac
 and a sup Read set at every Depth in the config (5, 10, 25 and 50x), with Dorado on CPU at
-the largest Depth. It checks the results table, that each Arm records its versions, Calling
-model checksums and container digest, that the chromosome's actual depth is within 5% of
-the Depth for every Read set, and that the fixture's known variants are true positives at
-50x. It takes several minutes, plus a download of the Clair3 images (about 6 GB) and HKU's
-models on a first run:
+the largest Depth. It checks the results table, that each Arm's rows carry the config's
+caller version, Calling model (for Dorado, the model `dorado polish` logged as resolved),
+container digest and hardware, that the chromosome's actual depth is within 5% of
+the Depth for every Read set, that the fixture's known variants are true positives at
+50x, and that `benchmarks.tsv` exists and is sane. It takes several minutes, plus a download
+of the Clair3 images (about 6 GB) and HKU's models on a first run:
 
 ```sh
 DORADO=/path/to/dorado DORADO_MODELS_DIR=/path/to/models tests/seam1.sh
@@ -130,16 +179,21 @@ real ATCC_25922 reads for the window, thinned to an even ~52x; `tests/fixture/ma
 records how they were made.
 
 Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
-precision-recall curves, `samtools coverage` output and caller info (tests/seam2/) where a
-run leaves them, for all 14 Samples x hac x 25 and 50x x Arms A-D. It then runs only the
-`aggregate` rule and checks the output tables:
+precision-recall curves, `samtools coverage` output and benchmark files
+(tests/seam2/) where a run leaves them, for all 14 Samples x hac x 25 and 50x x Arms A-D. It
+then runs only the `aggregate` and `benchmarks` rules and checks the output tables:
 
 - `sweep_best` rows are the sweep's BEST row, and `default_pass` rows are the PASS-only
   run's unthresholded NONE row, kept separate for every Arm;
 - F1 Q-score, including the Q60 cap;
 - actual depth for each Read set;
 - the dnd flag for all 14 Samples;
-- each PR curve's keys, and that every Best F1 row is a point on its curve.
+- each PR curve's keys, and that every Best F1 row is a point on its curve;
+- `results.tsv`'s columns (no `calling_model_sha256`) and each Arm's config-derived caller,
+  version, Calling model, container and hardware;
+- `benchmarks.tsv`: its keys and units, the config's hardware and threads on every row, the
+  worked Read set's literal timings, separate alignment rows (shared by B, C and D), the
+  Dorado CPU rows present at 50x only, and no CPU run in `results.tsv`.
 
 It takes a few seconds and needs only Snakemake (no GPU, Slurm, containers or downloads):
 

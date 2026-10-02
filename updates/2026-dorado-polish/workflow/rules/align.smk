@@ -1,5 +1,7 @@
 # Each Arm's alignment of the Read set, the RG reheader Dorado needs, and actual depth.
 
+ALIGN_THREADS = 8  # the benchmarks table reports it
+
 
 rule align:
     """Align a Read set. Arms with the same aligner, version and preset share this BAM."""
@@ -12,8 +14,8 @@ rule align:
     log:
         LOGS / "align/{sample}.{read_model}.{depth}x.{aln}.log",
     benchmark:
-        RESULTS / "benchmarks/align/{sample}.{read_model}.{depth}x.{aln}.tsv"
-    threads: 8
+        BENCH_ALIGN
+    threads: ALIGN_THREADS
     resources:
         mem_mb=8000,
         runtime=60,

@@ -121,6 +121,13 @@ clair3:  # Arms A, B and C. The Fine-tuned model is never used (ADR-0001).
       pileup.pt: 806d7439555c157f3b75f2d7fb317c15985a2be6562184bb734c72aaf68d0287
       full_alignment.pt: 235bbde32c675bf09032a2bd410f63e521ee36e0a2ab70b9bdc1988dfe768f87
 
+# The hardware the timed jobs run on, written into benchmarks.tsv (by device) and results.tsv.
+# It isn't measured in the jobs: the Slurm profile pins the partition and constraint that
+# provide it (profiles/bunya), and the README records how it was confirmed once.
+benchmark_hardware:
+  gpu: "NVIDIA H100 80GB HBM3"
+  cpu: "AMD EPYC 9745"
+
 max_indel: 50  # Filter chain: drop indels longer than this
 
 vcfdist:  # ADR-0003
