@@ -17,6 +17,7 @@ include: "rules/filter.smk"
 include: "rules/score.smk"
 include: "rules/dorado_aligner_check.smk"
 include: "rules/aggregate.smk"
+include: "rules/figures.smk"
 
 
 rule all:
@@ -26,3 +27,4 @@ rule all:
         rules.versions.output,
         dorado_cpu_targets(),
         aligner_check_targets(),
+        figure_targets(),

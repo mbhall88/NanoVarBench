@@ -35,7 +35,9 @@ The workflow runs all four Arms end to end: A, B and C with Clair3 (#9) and D wi
    runtime comparison (#12). These runs are timing only: they aren't scored and never appear
    in `results.tsv`, and `results/calls/.../<arm>.cpu_vs_main.tsv` checks their calls match
    the main run's. Clair3 only runs on CPU, so it has no re-run;
-8. writes `results/tables/benchmarks.tsv` (see Benchmarks below).
+8. writes `results/tables/benchmarks.tsv` (see Benchmarks below);
+9. draws the post's figures and tables from those aggregated tables alone (see Figures and
+   tables below).
 
 Arms are config entities (`arms:` in [config/config.yaml](config/config.yaml)); `run:`
 picks the Samples, Read models, Depths and Arms.
@@ -84,6 +86,54 @@ command.
       --forcerun align call_dorado call_dorado_cpu call_clair3 \
       --config 'run={samples: [ATCC_25922__202309], read_models: [hac, sup], depths: [5, 10, 25, 50], arms: [A, B, C, D]}'
   ```
+
+## Figures and tables (#14)
+
+The `fig*` and `table*` rules ([workflow/rules/figures.smk](workflow/rules/figures.smk)) read
+only `results/tables/` (`results.tsv`, `pr_curves.tsv`, `depth.tsv`, `benchmarks.tsv`), never a
+VCF, BAM or score file, so they can be rebuilt from the aggregated tables without `work_dir`.
+They run in a conda env ([workflow/envs/plot.yaml](workflow/envs/plot.yaml): pandas and
+matplotlib) and are part of `rule all`. Arms are labelled as in CONTEXT.md ("Arm D (Dorado)",
+from `figures.arm_labels` in the config). Figures are written as PNG and SVG to
+`results/figures/`, tables as CSV to `results/tables/`. Nothing here is committed with the
+code: the rendered outputs go in once, with the final aggregated tables (#15).
+
+- **Figure 1** (`fig1_best_f1_depth`): Best F1 against Depth, with SNP and INDEL rows and hac
+  and sup columns. Solid lines are each Arm's Best F1 (`sweep_best`), medians over the
+  Samples. Dashed lines are the Default-PASS score of Arms C and D
+  (`figures.default_pass_arms`), so Arm D's default is shown apart from its Best F1 and beside
+  Clair3's. The figure's note says Depth is a per-position `rasusa aln` cap, not a random
+  genome-wide subsample.
+- **Figure 2** (`fig2_pr_curves`): precision-recall curves from the QUAL sweep at the Depths in
+  `figures.pr_depths` (10 and 50x; a Depth missing from the run is skipped), per variant type
+  and Read model, one curve per Arm. The Samples are pooled: truth and query counts are summed
+  at each QUAL threshold, so a curve is the PR curve of all their variants together. The
+  Default-PASS score is a marker on each curve, pooled the same way. Each panel is zoomed to
+  its own range.
+- **Figure 3** (`fig3_per_sample_best_f1`): every Sample's Best F1 at every Depth, a dot per
+  Arm, with the dnd Samples shaded and their names in red (dorado#1599).
+- **Table 1** (`tables/table1_runtime_memory.csv`): runtime and memory, from
+  `benchmarks.tsv`. One row per step, tool and Arm(s) at each Depth, with the median and range
+  of wall time and peak RSS over the Samples and Read models. The alignment shared by Arms B,
+  C and D is one row (not counted three times), and Dorado on CPU (timing only, 50x) is a row
+  beside Dorado on GPU. Peak RSS is host memory: GPU memory isn't measured.
+- **Table S1** (`tables/table_s1_per_sample.csv`): a row per Sample x Read model x Depth x Arm,
+  with the Read set's actual depth, overall and per contig (from `depth.tsv`), and for SNP
+  and INDEL the Best F1 (with the QUAL threshold it was reached at) and the Default-PASS score,
+  each with precision and recall. Its headers are readable, for the site's interactive
+  `csv-table`.
+
+To render the figures and tables from a copy of the aggregated tables, put them in a
+`results_dir`'s `tables/` and ask for just these rules. Snakemake doesn't re-run the upstream
+jobs when the tables already exist:
+
+```sh
+snakemake results/figures/fig1_best_f1_depth.png results/figures/fig2_pr_curves.png \
+    results/figures/fig3_per_sample_best_f1.png results/tables/table1_runtime_memory.csv \
+    results/tables/table_s1_per_sample.csv -s workflow/Snakefile --cores 1 \
+    --software-deployment-method conda --allowed-rules fig1_best_f1_depth fig2_pr_curves \
+    fig3_per_sample_best_f1 table1_runtime_memory table_s1_per_sample
+```
 
 ## Clair3 (Arms A, B and C)
 
@@ -135,7 +185,8 @@ Snakemake 9 with the Slurm executor plugin, Apptainer, conda/mamba, and the
 [Dorado 2.1.2](https://cdn.oxfordnanoportal.com/software/analysis/dorado-2.1.2-linux-x64.tar.gz)
 binary. Every other tool runs from a container pinned by digest
 ([workflow/rules/common.smk](workflow/rules/common.smk)), except the Filter chain's
-bcftools + cyvcf2, which use a conda env ([workflow/envs/filter.yaml](workflow/envs/filter.yaml)).
+bcftools + cyvcf2, which use a conda env ([workflow/envs/filter.yaml](workflow/envs/filter.yaml)),
+and the figure and table scripts ([workflow/envs/plot.yaml](workflow/envs/plot.yaml)).
 
 ## Run
 
@@ -165,7 +216,8 @@ the largest Depth. It checks the results table, that each Arm's rows carry the c
 caller version, Calling model (for Dorado, the model `dorado polish` logged as resolved),
 container digest and hardware, that the chromosome's actual depth is within 5% of
 the Depth for every Read set, that the fixture's known variants are true positives at
-50x, and that `benchmarks.tsv` exists and is sane. It takes several minutes, plus a download
+50x, that `benchmarks.tsv` exists and is sane, and that the figures and tables exist (PNG and
+SVG figures, and Table 1 and Table S1 with the rows they should have). It takes several minutes, plus a download
 of the Clair3 images (about 6 GB) and HKU's models on a first run:
 
 ```sh

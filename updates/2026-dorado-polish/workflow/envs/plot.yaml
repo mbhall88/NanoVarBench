@@ -1,0 +1,7 @@
+# The figure and table scripts' tools (#14). Pinned like the Filter chain's env.
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pandas=2.3.3
+  - matplotlib-base=3.10.6
