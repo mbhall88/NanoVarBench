@@ -50,6 +50,65 @@ rule aggregate:
         "../scripts/aggregate.py"
 
 
+def benchmark_jobs():
+    """The timed jobs behind each Arm's cost: its alignment, its calling step, and for
+    Dorado the timing-only CPU re-run at the Depths in dorado.cpu_run. An Arm's alignment is
+    the one it shares with the other Arms using the same aligner, version and preset."""
+    cpu_depths = {int(d) for d in CPU_RUN.get("depths", [])}
+    jobs = []
+    for c in combos():
+        keys = dict(c, depth=str(c["depth"]), aln=arm_alignment(c["arm"]))
+        arm = ARMS[c["arm"]]
+        fmt = lambda path: str(path).format(**keys)
+        base = {k: keys[k] for k in ("sample", "read_model", "depth", "arm")}
+        jobs.append(
+            dict(
+                base,
+                step="align",
+                timing_only="false",
+                tool=arm["aligner"],
+                tool_version=str(arm["aligner_version"]),
+                alignment=keys["aln"],
+                benchmark=fmt(BENCH_ALIGN),
+                info=fmt(ALIGN_INFO),
+            )
+        )
+        call = dict(base, step="call", alignment=keys["aln"], timing_only="false")
+        if arm["caller"] == "dorado":
+            jobs.append(dict(call, benchmark=fmt(BENCH_DORADO), info=fmt(CALLER_INFO)))
+            if c["depth"] in cpu_depths:
+                jobs.append(
+                    dict(
+                        call,
+                        timing_only="true",
+                        benchmark=fmt(BENCH_DORADO_CPU),
+                        info=fmt(CALLER_INFO_CPU),
+                    )
+                )
+        else:
+            jobs.append(dict(call, benchmark=fmt(BENCH_CLAIR3), info=fmt(CALLER_INFO)))
+    return jobs
+
+
+rule benchmarks:
+    """Runtime and memory of every Arm's alignment and calling step (Table 1, #12), from
+    Snakemake's benchmark files and each job's hardware. Fails if the GPU timings come from
+    more than one GPU model (or the CPU ones from more than one CPU model)."""
+    input:
+        files=[f for job in benchmark_jobs() for f in (job["benchmark"], job["info"])],
+    output:
+        tsv=RESULTS / "tables/benchmarks.tsv",
+    log:
+        LOGS / "benchmarks.log",
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    params:
+        jobs=benchmark_jobs(),
+    script:
+        "../scripts/benchmarks.py"
+
+
 # Tools run from a container: the command that prints each one's version.
 VERSION_COMMANDS = {
     "minimap2-2.26": "minimap2 --version; samtools --version | sed -n 1p",
@@ -130,6 +189,7 @@ rule versions:
 
 localrules:
     aggregate,
+    benchmarks,
     versions,
     tool_version,
     filter_env_version,

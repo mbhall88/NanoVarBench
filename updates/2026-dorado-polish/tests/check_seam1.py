@@ -280,6 +280,54 @@ for vcf in vcfs:
         leaky.append(str(vcf.relative_to(outdir)))
 check(vcfs and not leaky, f"{len(vcfs)} filtered VCF headers carry no site paths (leaky: {leaky})")
 
+# 8. benchmarks.tsv: one alignment and one calling row for every Read set x Arm, plus the
+# timing-only Dorado CPU re-run (an extra Arm D calling row) at the CPU Depth only, and sane
+# numbers: positive times and memory, the caller command no longer than its job, and one
+# hardware model per device. Dorado runs on CPU here (the fixture has no GPU), so the main Arm D
+# row and the re-run are told apart by timing_only.
+bench = read_tsv(outdir / "results/tables/benchmarks.tsv")
+got = sorted((r["read_model"], int(r["depth"]), r["arm"], r["step"], r["timing_only"]) for r in bench)
+want = sorted(
+    [(rm, d, a, step, "false") for rm, d in READ_SETS for a in ARMS for step in ("align", "call")]
+    + [(rm, d, "D", "call", "true") for rm, d in READ_SETS if d == args.cpu_depth]
+)
+check(got == want, f"benchmarks.tsv has {len(want)} rows: align and call per Arm, plus the CPU re-run at {args.cpu_depth}x")
+check({r["sample"] for r in bench} == {SAMPLE}, "benchmarks.tsv is for the fixture Sample")
+bad = [
+    (r["read_model"], r["depth"], r["arm"], r["step"], r["timing_only"])
+    for r in bench
+    if not (
+        float(r["wall_time_s"]) > 0
+        and float(r["max_rss_mb"]) > 0
+        and float(r["cpu_time_s"]) > 0
+        and re.fullmatch(r"\d+", r["threads"])
+        and r["hardware"]
+        and r["host"]
+        and (r["command_wall_time_s"] == "" if r["step"] == "align" else 0 < float(r["command_wall_time_s"]) <= float(r["wall_time_s"]))
+    )
+]
+check(not bad, f"every benchmark row has positive times and memory, threads, hardware and host: {bad}")
+check(
+    all(r["hardware"].startswith("CPU: ") and r["device"] == "cpu" for r in bench),
+    "all fixture timings are on CPU, recorded as CPU: <model>",
+)
+check(len({r["hardware"] for r in bench}) == 1, f"one hardware model: {sorted({r['hardware'] for r in bench})}")
+for r in bench:
+    if r["timing_only"] == "true" and r["arm"] != "D":
+        check(False, f"timing-only row for Arm {r['arm']}")
+check(
+    {r["tool"] for r in bench if r["step"] == "call"} == {"clair3", "dorado"}
+    and {r["tool"] for r in bench if r["step"] == "align"} == {"minimap2"},
+    "benchmark rows name their tool",
+)
+# Dorado's CPU-only re-run never becomes an accuracy row: results.tsv has exactly one Arm D row
+# per Read set x variant type x scoring mode.
+d_rows = [r for r in results if r["arm"] == "D"]
+check(
+    len(d_rows) == len(READ_SETS) * 3 * 2,
+    f"results.tsv has no extra Arm D rows from the CPU re-run ({len(d_rows)} rows)",
+)
+
 if failures:
     sys.exit(f"{len(failures)} check(s) failed")
 print("Seam 1 passed")

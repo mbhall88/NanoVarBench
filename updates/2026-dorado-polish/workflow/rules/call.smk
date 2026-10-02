@@ -59,7 +59,7 @@ rule call_dorado:
     log:
         LOGS / "call_dorado/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
-        RESULTS / "benchmarks/call_dorado/{sample}.{read_model}.{depth}x.{arm}.tsv"
+        BENCH_DORADO
     threads: 8
     resources:
         mem_mb=16000,
@@ -74,10 +74,12 @@ rule call_dorado:
     shell:
         """
         outdir=$(dirname {output.vcf})
+        start=$(date +%s.%N)
         {params.bin} polish {input.bam} {input.mutref} {params.model_flag} --vcf \
             --min-depth {params.min_depth} {params.any_bam} --ignore-read-groups \
             --models-directory {params.models_dir} --threads {threads} \
             --device {params.device} -o "$outdir" -v > "$outdir/stdout.txt" 2> {log}
+        command_wall=$(awk -v s="$start" -v e="$(date +%s.%N)" 'BEGIN {{printf "%.2f", e - s}}')
 
         version=$({params.bin} --version 2>&1 | tail -n 1)
         model=$(sed -n 's/.*Resolved model from input data: \\([^ ]*\\).*/\\1/p' {log} | tail -n 1)
@@ -89,9 +91,9 @@ rule call_dorado:
             hardware=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader | sed -n 1p)
         fi
         mkdir -p "$(dirname {output.info})"
-        printf 'caller\\tcaller_version\\tcalling_model\\tcalling_model_weights_sha256\\tdevice\\thardware\\thost\\n' > {output.info}
-        printf 'dorado\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "$version" "$model" "$weights_sha256" \
-            "{params.device}" "$hardware" "$(hostname)" >> {output.info}
+        printf 'caller\\tcaller_version\\tcalling_model\\tcalling_model_weights_sha256\\tdevice\\thardware\\thost\\tthreads\\tcommand_wall_s\\n' > {output.info}
+        printf 'dorado\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "$version" "$model" "$weights_sha256" \
+            "{params.device}" "$hardware" "$(hostname)" "{threads}" "$command_wall" >> {output.info}
         """
 
 
@@ -104,11 +106,11 @@ CALL_CPU = WORK / "call_cpu/{sample}/{read_model}/{depth}x/{arm}"
 use rule call_dorado as call_dorado_cpu with:
     output:
         vcf=CALL_CPU / "variants.vcf",
-        info=RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.cpu.caller_info.tsv",
+        info=CALLER_INFO_CPU,
     log:
         LOGS / "call_dorado_cpu/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
-        RESULTS / "benchmarks/call_dorado_cpu/{sample}.{read_model}.{depth}x.{arm}.tsv"
+        BENCH_DORADO_CPU
     threads: CPU_RUN.get("threads", 8)
     resources:
         mem_mb=16000,
@@ -262,7 +264,7 @@ rule call_clair3:
     log:
         LOGS / "call_clair3/{sample}.{read_model}.{depth}x.{arm}.log",
     benchmark:
-        RESULTS / "benchmarks/call_clair3/{sample}.{read_model}.{depth}x.{arm}.tsv"
+        BENCH_CLAIR3
     threads: CLAIR3["threads"]
     resources:
         mem_mb=16000,
@@ -282,9 +284,11 @@ rule call_clair3:
         [ -r {params.model_path}/pileup.pt ] || [ -r {params.model_path}/pileup.index ] || \
             {{ echo "no Calling model files in {params.model_path}" >&2; exit 1; }}
 
+        start=$(date +%s.%N)
         /opt/bin/run_clair3.sh --bam_fn={input.bam} --ref_fn={input.mutref} \
             --threads={threads} --model_path={params.model_path} --output="$outdir" \
             --sample_name={wildcards.sample} {params.options}
+        command_wall=$(awk -v s="$start" -v e="$(date +%s.%N)" 'BEGIN {{printf "%.2f", e - s}}')
         mv "$outdir/merge_output.vcf.gz" {output.vcf}
 
         version=$(/opt/bin/run_clair3.sh --version 2>&1 | tail -n 1 | sed -E 's/^Clair3 v?//')
@@ -292,9 +296,9 @@ rule call_clair3:
             | awk '{{printf "%s%s=%s", (NR > 1 ? ";" : ""), $2, $1}}')
         hardware="cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | sed 's/^ *//')"
         mkdir -p "$(dirname {output.info})"
-        printf 'caller\tcaller_version\tcalling_model\tcalling_model_sha256\tcontainer\tdevice\thardware\thost\n' > {output.info}
-        printf 'clair3\t%s\t%s\t%s\t%s\tcpu\t%s\t%s\n' "$version" "{params.model}" "$model_sha256" \
-            "{params.container}" "$hardware" "$(hostname)" >> {output.info}
+        printf 'caller\tcaller_version\tcalling_model\tcalling_model_sha256\tcontainer\tdevice\thardware\thost\tthreads\tcommand_wall_s\n' > {output.info}
+        printf 'clair3\t%s\t%s\t%s\t%s\tcpu\t%s\t%s\t%s\t%s\n' "$version" "{params.model}" "$model_sha256" \
+            "{params.container}" "$hardware" "$(hostname)" "{threads}" "$command_wall" >> {output.info}
         """
 
 

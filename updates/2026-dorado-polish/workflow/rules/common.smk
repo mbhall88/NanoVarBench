@@ -183,3 +183,13 @@ KEYS = "{sample}.{read_model}.{depth}x"
 # Every caller writes one of these per Arm: caller, version, Calling model and its
 # checksums, and where it ran.
 CALLER_INFO = RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.caller_info.tsv"
+
+# Snakemake benchmark files (wall time, max RSS, ...) of the timed steps, read by the
+# benchmarks rule (#12). Alignment and calling are timed apart. An align job also writes its
+# hardware next to its benchmark, since it has no caller_info.
+BENCH_ALIGN = RESULTS / "benchmarks/align/{sample}.{read_model}.{depth}x.{aln}.tsv"
+ALIGN_INFO = RESULTS / "benchmarks/align/{sample}.{read_model}.{depth}x.{aln}.info.tsv"
+BENCH_DORADO = RESULTS / "benchmarks/call_dorado/{sample}.{read_model}.{depth}x.{arm}.tsv"
+BENCH_DORADO_CPU = RESULTS / "benchmarks/call_dorado_cpu/{sample}.{read_model}.{depth}x.{arm}.tsv"
+BENCH_CLAIR3 = RESULTS / "benchmarks/call_clair3/{sample}.{read_model}.{depth}x.{arm}.tsv"
+CALLER_INFO_CPU = RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.cpu.caller_info.tsv"

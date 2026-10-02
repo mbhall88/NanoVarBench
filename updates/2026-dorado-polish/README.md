@@ -30,12 +30,56 @@ The workflow runs all four Arms end to end: A, B and C with Clair3 (#9) and D wi
    records the caller version, Calling model, the SHA256 of its files, and (for Clair3) the
    container digest, and `results.tsv` carries them too;
 7. re-runs Dorado with `--device cpu` on the Depths in `dorado.cpu_run` (50x) for the
-   runtime comparison (#12). These runs are timing only: they aren't scored, and
-   `results/calls/.../<arm>.cpu_vs_main.tsv` checks their calls match the main run's.
-   Clair3 only runs on CPU, so it has no re-run.
+   runtime comparison (#12). These runs are timing only: they aren't scored and never appear
+   in `results.tsv`, and `results/calls/.../<arm>.cpu_vs_main.tsv` checks their calls match
+   the main run's. Clair3 only runs on CPU, so it has no re-run;
+8. writes `results/tables/benchmarks.tsv` (see Benchmarks below).
 
 Arms are config entities (`arms:` in [config/config.yaml](config/config.yaml)); `run:`
 picks the Samples, Read models, Depths and Arms.
+
+## Benchmarks (#12)
+
+`results/tables/benchmarks.tsv` is Table 1: one row per Sample x Read model x Depth x Arm x
+step x `timing_only`, built by the `benchmarks` rule from Snakemake's `benchmark:` files
+(`results/benchmarks/`) and each job's hardware.
+
+- **Steps.** `align` is the Arm's alignment (minimap2 with `samtools sort` and `index`). Arms
+  with the same aligner, version and preset share one BAM, so B, C and D carry the same
+  alignment row and Arm A has its own; don't add alignment rows across Arms. `call` is the
+  calling step alone: Clair3 (Arms A-C, 8 threads) or `dorado polish` (Arm D, on the GPU).
+  Everything else is left out: read QC, subsampling, the `@RG` reheader, the Filter chain and
+  scoring. Arm D at the Depths in `dorado.cpu_run` (50x) has a second `call` row with
+  `timing_only = true`: `dorado polish --device cpu` on 8 threads, the same as Clair3. It
+  isn't scored and isn't in `results.tsv`.
+- **Columns.** The keys, `step`, `timing_only`, `tool`, `tool_version`, `alignment`, `device`
+  (`gpu` or `cpu`), `hardware` (the GPU model, or `CPU: <model>`), the GPU `driver`, `host`,
+  `threads`, then `wall_time_s`, `command_wall_time_s`, `max_rss_mb`, `max_vms_mb`,
+  `max_uss_mb`, `max_pss_mb`, `cpu_time_s`, `mean_cpu_pct`, `io_in_mb` and `io_out_mb`. Times
+  are in seconds and memory in MB, as in Snakemake's benchmark files.
+- **Two wall times.** `wall_time_s` is Snakemake's, for the whole job script. It includes
+  recording caller_info (for Dorado that hashes the weights and runs `nvidia-smi`), which is
+  a noticeable part of a 5 s GPU job. `command_wall_time_s` times the caller command alone
+  (from `caller_info.tsv`, empty for `align`). Quote it for the caller's own speed.
+  `max_rss_mb` is the whole job's.
+- **Hardware.** Each job records its hardware: Dorado and Clair3 in their `caller_info.tsv`
+  (with `threads` and `command_wall_s`), alignment in `results/benchmarks/align/*.info.tsv`.
+- **One piece of hardware.** `call_dorado` is pinned to one H100 variant, the **H100 SXM**
+  (`gpu_sxm`, "NVIDIA H100 80GB HBM3"), never an A100 or a MIG slice. `gpu_cuda`'s H100s are
+  PCIe, a different part with different speed, so letting `call_dorado` pick either would mix
+  hardware. SXM was also the partition with free H100s when the benchmark was run. The timed
+  CPU steps (alignment, Clair3 and the Dorado CPU re-run) are pinned to the `epyc5` nodes
+  (AMD EPYC 9745). The `benchmarks` rule **fails** if the table would hold more than one GPU
+  model, or more than one CPU model, and names them. Nodes are shared, so CPU timings include
+  whatever else ran on the node.
+- **Re-timing.** To re-time the calling steps, force just those rules (and `align` to time
+  the alignment too). The targets go before `--config`, which takes the rest of the line:
+
+  ```sh
+  snakemake -s workflow/Snakefile --workflow-profile profiles/bunya --configfile config/local.yaml \
+      --forcerun align call_dorado call_dorado_cpu call_clair3 \
+      --config 'run={samples: [ATCC_25922__202309], read_models: [hac, sup], depths: [5, 10, 25, 50], arms: [A, B, C, D]}'
+  ```
 
 ## Clair3 (Arms A, B and C)
 
@@ -115,9 +159,9 @@ Seam 1 runs the whole workflow on a 40 kb fixture (tests/fixture/) for Arms A-D,
 and a sup Read set at every Depth in the config (5, 10, 25 and 50x), with Dorado on CPU at
 the largest Depth. It checks the results table, that each Arm records its versions, Calling
 model checksums and container digest, that the chromosome's actual depth is within 5% of
-the Depth for every Read set, and that the fixture's known variants are true positives at
-50x. It takes several minutes, plus a download of the Clair3 images (about 6 GB) and HKU's
-models on a first run:
+the Depth for every Read set, that the fixture's known variants are true positives at
+50x, and that `benchmarks.tsv` exists and is sane. It takes several minutes, plus a download
+of the Clair3 images (about 6 GB) and HKU's models on a first run:
 
 ```sh
 DORADO=/path/to/dorado DORADO_MODELS_DIR=/path/to/models tests/seam1.sh
@@ -130,16 +174,20 @@ real ATCC_25922 reads for the window, thinned to an even ~52x; `tests/fixture/ma
 records how they were made.
 
 Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
-precision-recall curves, `samtools coverage` output and caller info (tests/seam2/) where a
-run leaves them, for all 14 Samples x hac x 25 and 50x x Arms A-D. It then runs only the
-`aggregate` rule and checks the output tables:
+precision-recall curves, `samtools coverage` output, caller info and benchmark files
+(tests/seam2/) where a run leaves them, for all 14 Samples x hac x 25 and 50x x Arms A-D. It
+then runs only the `aggregate` and `benchmarks` rules and checks the output tables:
 
 - `sweep_best` rows are the sweep's BEST row, and `default_pass` rows are the PASS-only
   run's unthresholded NONE row, kept separate for every Arm;
 - F1 Q-score, including the Q60 cap;
 - actual depth for each Read set;
 - the dnd flag for all 14 Samples;
-- each PR curve's keys, and that every Best F1 row is a point on its curve.
+- each PR curve's keys, and that every Best F1 row is a point on its curve;
+- `benchmarks.tsv`: its keys and units, each job's hardware and threads, the worked Read
+  set's literal timings, separate alignment rows (shared by B, C and D), the Dorado CPU rows
+  present at 50x only, no CPU run in `results.tsv`, and that inputs from two GPU models (or
+  two CPU models) make the rule fail, name both and write no table.
 
 It takes a few seconds and needs only Snakemake (no GPU, Slurm, containers or downloads):
 

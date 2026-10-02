@@ -9,10 +9,11 @@ rule align:
     output:
         bam=ALIGN / "{aln}.bam",
         bai=ALIGN / "{aln}.bam.bai",
+        info=ALIGN_INFO,
     log:
         LOGS / "align/{sample}.{read_model}.{depth}x.{aln}.log",
     benchmark:
-        RESULTS / "benchmarks/align/{sample}.{read_model}.{depth}x.{aln}.tsv"
+        BENCH_ALIGN
     threads: 8
     resources:
         mem_mb=8000,
@@ -27,6 +28,11 @@ rule align:
         minimap2 -t {threads} -aL --cs --MD -x {params.preset} {input.mutref} {input.fastq} \
             | samtools sort -@ 2 -T {output.bam}.tmp -o {output.bam} -
         samtools index {output.bam}
+
+        hardware="cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | sed 's/^ *//')"
+        mkdir -p "$(dirname {output.info})"
+        printf 'device\\thardware\\thost\\tthreads\\n' > {output.info}
+        printf 'cpu\\t%s\\t%s\\t%s\\n' "$hardware" "$(cat /proc/sys/kernel/hostname)" "{threads}" >> {output.info}
         """
 
 
