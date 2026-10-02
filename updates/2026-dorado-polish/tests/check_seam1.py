@@ -7,6 +7,8 @@ fixture's known TPs.
 
 import argparse
 import csv
+import gzip
+import os
 import re
 import sys
 from pathlib import Path
@@ -265,6 +267,18 @@ for rm, d in READ_SETS:
     )
     check(bams == ["minimap2-2.26-map-ont.bam", "minimap2-2.31-lrhq.bam"],
           f"{rm} {d}x: Read set aligned once per aligner/version/preset: {bams}")
+
+# The VCFs a run commits carry no site paths: the Filter chain swaps the run's directories
+# (here all under OUTDIR) for placeholders such as {work_dir}.
+site_dirs = {str(outdir), os.path.realpath(outdir)}
+vcfs = sorted((outdir / "results").rglob("*.vcf.gz"))
+leaky = []
+for vcf in vcfs:
+    with gzip.open(vcf, "rt") as fh:
+        header = "".join(line for line in fh if line.startswith("##"))
+    if any(d in header for d in site_dirs):
+        leaky.append(str(vcf.relative_to(outdir)))
+check(vcfs and not leaky, f"{len(vcfs)} filtered VCF headers carry no site paths (leaky: {leaky})")
 
 if failures:
     sys.exit(f"{len(failures)} check(s) failed")

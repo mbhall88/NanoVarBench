@@ -1,8 +1,12 @@
 .snakemake/
 work/
 # The repository's .gitignore ignores results/ everywhere; this update commits its small
-# results (tables, filtered VCFs, benchmarks), so re-include them here.
+# results (tables, depth, benchmarks, versions, caller info), so re-include them here.
 !results/
+# Filtered VCFs aren't committed: the final set goes to Zenodo, and the workflow regenerates them.
+results/**/*.vcf.gz
+results/**/*.vcf.gz.csi
+results/**/*.vcf.gz.tmp.vcf.gz
 # Default input and tool locations (config/config.yaml), and site-specific paths.
 data/
 resources/
