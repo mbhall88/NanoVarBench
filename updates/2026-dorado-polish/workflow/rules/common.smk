@@ -29,6 +29,14 @@ CONTAINERS = {
     "vcfdist": "docker://timd1/vcfdist@sha256:d8b14a999a290f3b21dd4cde3bf52f2ad814b252823b8a4d9a01b548ae71dee3",
 }
 
+# The hardware the timed jobs run on, as a config value (benchmark_hardware): the workflow
+# doesn't run anything in a job to find out. The Slurm profile pins the partition and
+# constraint that provide it, and the README records how it was confirmed.
+HARDWARE = {
+    "gpu": config["benchmark_hardware"]["gpu"],
+    "cpu": f"CPU: {config['benchmark_hardware']['cpu']}",
+}
+
 WORKFLOW_DIR = Path(workflow.basedir)
 SCRIPTS = WORKFLOW_DIR / "scripts"
 ENVS = WORKFLOW_DIR / "envs"
@@ -180,16 +188,9 @@ ALIGN = WORK / "align/{sample}/{read_model}/{depth}x"
 CALL = WORK / "call/{sample}/{read_model}/{depth}x/{arm}"
 SCORE = WORK / "score/{sample}/{read_model}/{depth}x/{arm}/{mode}"
 KEYS = "{sample}.{read_model}.{depth}x"
-# Every caller writes one of these per Arm: caller, version, Calling model and its
-# checksums, and where it ran.
-CALLER_INFO = RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.caller_info.tsv"
-
 # Snakemake benchmark files (wall time, max RSS, ...) of the timed steps, read by the
-# benchmarks rule (#12). Alignment and calling are timed apart. An align job also writes its
-# hardware next to its benchmark, since it has no caller_info.
+# benchmarks rule (#12). Alignment and calling are timed apart.
 BENCH_ALIGN = RESULTS / "benchmarks/align/{sample}.{read_model}.{depth}x.{aln}.tsv"
-ALIGN_INFO = RESULTS / "benchmarks/align/{sample}.{read_model}.{depth}x.{aln}.info.tsv"
 BENCH_DORADO = RESULTS / "benchmarks/call_dorado/{sample}.{read_model}.{depth}x.{arm}.tsv"
 BENCH_DORADO_CPU = RESULTS / "benchmarks/call_dorado_cpu/{sample}.{read_model}.{depth}x.{arm}.tsv"
 BENCH_CLAIR3 = RESULTS / "benchmarks/call_clair3/{sample}.{read_model}.{depth}x.{arm}.tsv"
-CALLER_INFO_CPU = RESULTS / "calls/{sample}/{read_model}/{depth}x/{arm}.cpu.caller_info.tsv"

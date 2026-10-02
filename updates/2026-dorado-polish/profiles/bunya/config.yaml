@@ -31,9 +31,9 @@ default-resources:
 #
 # Timings (#12) are only comparable on one piece of hardware, so call_dorado is pinned to the
 # H100 SXM partition (gpu_sxm: bun118-120, "NVIDIA H100 80GB HBM3"). gpu_cuda's H100s are PCIe,
-# a different part. The benchmarks rule fails if the GPU timings come from more than one GPU
-# model. The CPU steps that are timed (alignment, Clair3 and the Dorado CPU re-run) are pinned
-# to the same CPU generation, the epyc5 nodes (AMD EPYC 9745), and checked likewise.
+# a different part. The CPU steps that are timed (alignment, Clair3 and the Dorado CPU re-run)
+# are pinned to the same CPU generation, the epyc5 nodes (AMD EPYC 9745). These pins are what
+# make benchmark_hardware in config/config.yaml true; nothing in the jobs checks it.
 set-resources:
   call_dorado: &dorado_gpu
     slurm_partition: gpu_sxm

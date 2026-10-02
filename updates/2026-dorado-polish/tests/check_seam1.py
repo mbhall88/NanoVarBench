@@ -76,10 +76,19 @@ if got != want:
     print("  unexpected:", sorted(set(got) - set(want))[:10])
 check({r["sample"] for r in results} == {SAMPLE}, "results.tsv is for the fixture Sample only")
 
-# 2. Each Arm's aligner, caller and Calling model are recorded, with a checksum for the
-# Calling model's files and the digest of the container each tool ran in. The Calling model
-# follows the Read model, so it is the same at every Depth.
-SHA256 = re.compile(r"[0-9a-f]{64}")
+# 2. Each Arm's aligner, caller and Calling model come from the config, so results.tsv carries
+# them exactly: the caller's version, the Calling model (which follows the Read model), the
+# digest of the container each Clair3 ran in (Dorado isn't containerised) and the hardware.
+# The jobs record nothing, so there is no Calling-model checksum column.
+check(
+    "calling_model_sha256" not in results[0],
+    "results.tsv has no calling_model_sha256 column (Clair3's model files are checked at download)",
+)
+DORADO_MODEL = "dna_r10.4.1_e8.2_400bps_polish_bacterial_methylation_v5.0.0"
+CLAIR3_CONTAINER = {
+    "1.0.5": "docker://quay.io/mbhall88/clair3@sha256:6a4c352e7d14ebb67bdad4be366dcbf6afa66cc7f0ee0b37a05cebe3f4754735",
+    "2.0.3": "docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202",
+}
 by_arm = {
     (a, rm): [r for r in results if r["arm"] == a and r["read_model"] == rm]
     for a in ARMS
@@ -88,8 +97,8 @@ by_arm = {
 for (arm, rm), rows in by_arm.items():
     aln_version, preset, caller, caller_version = ARM_SPEC[arm]
     check(
-        len({(r["calling_model"], r["calling_model_sha256"], r["container"]) for r in rows}) == 1,
-        f"Arm {arm} {rm}: one Calling model and container across Depths",
+        len({(r["calling_model"], r["container"], r["hardware"]) for r in rows}) == 1,
+        f"Arm {arm} {rm}: one Calling model, container and hardware across Depths",
     )
     r = rows[0]
     check(
@@ -98,16 +107,12 @@ for (arm, rm), rows in by_arm.items():
     )
     check(r["caller"] == caller, f"Arm {arm} {rm} caller {r['caller']!r}")
     check(
-        r["caller_version"].startswith(caller_version),
+        r["caller_version"] == caller_version,
         f"Arm {arm} {rm} caller_version {r['caller_version']!r}",
     )
     check(
         r["basecall_model"] == f"dna_r10.4.1_e8.2_400bps_{rm}@v4.3.0",
         f"Arm {arm} {rm} basecall_model {r['basecall_model']!r}",
-    )
-    check(
-        bool(SHA256.search(r["calling_model_sha256"])),
-        f"Arm {arm} {rm} calling_model_sha256 {r['calling_model_sha256']!r}",
     )
     if caller == "clair3":
         check(
@@ -115,26 +120,32 @@ for (arm, rm), rows in by_arm.items():
             f"Arm {arm} {rm} calling_model {r['calling_model']!r}",
         )
         check(
-            "@sha256:" in r["container"],
-            f"Arm {arm} {rm} container is pinned by digest: {r['container']!r}",
+            r["container"] == CLAIR3_CONTAINER[caller_version],
+            f"Arm {arm} {rm} container is Clair3 {caller_version}'s pinned digest: {r['container']!r}",
         )
+        check(r["hardware"].startswith("CPU: "), f"Arm {arm} {rm} hardware {r['hardware']!r}")
     else:
         check(
-            r["calling_model"].startswith("dna_r10.4.1_e8.2_400bps_polish_bacterial"),
-            f"Arm {arm} {rm} calling_model {r['calling_model']!r}",
+            r["calling_model"] == DORADO_MODEL and r["container"] == "",
+            f"Arm {arm} {rm} calling_model {r['calling_model']!r}, container {r['container']!r}",
+        )
+        # The config's Dorado model is the one dorado polish --bacteria resolves for these
+        # reads: its log says so (the rule itself no longer parses it).
+        log = (outdir / f"work/logs/call_dorado/{SAMPLE}.{rm}.{TOP}x.{arm}.log").read_text()
+        resolved = re.findall(r"Resolved model from input data: (\S+)", log)
+        check(
+            resolved and resolved[-1] == r["calling_model"],
+            f"Arm {arm} {rm}: dorado resolved {resolved[-1:]} == the config's {r['calling_model']!r}",
         )
 
-# Arms A and B run Clair3 1.0.5 in one container, and Arm C runs 2.0.3 in another, so C's
-# Calling-model checksums differ from the TF models of A and B.
+# Arms A and B run Clair3 1.0.5 in one container, and Arm C runs 2.0.3 in another. Every Read
+# model has its own Clair3 Calling model.
 for rm in READ_MODELS:
-    sha = {a: by_arm[(a, rm)][0]["calling_model_sha256"] for a in ARMS}
-    check(sha["A"] == sha["B"], f"{rm}: Arms A and B use the same bundled TF Calling model")
-    check(sha["C"] != sha["B"], f"{rm}: Arm C uses the HKU PyTorch Calling model, not B's TF one")
     digest = {a: by_arm[(a, rm)][0]["container"] for a in ("A", "B", "C")}
     check(digest["A"] == digest["B"], f"{rm}: Arms A and B ran in the same Clair3 1.0.5 container")
     check(digest["C"] != digest["B"], f"{rm}: Arm C ran in the Clair3 2.0.3 container")
 check(
-    len({by_arm[("B", rm)][0]["calling_model_sha256"] for rm in READ_MODELS}) == len(READ_MODELS),
+    len({by_arm[("B", rm)][0]["calling_model"] for rm in READ_MODELS}) == len(READ_MODELS),
     "Arm B has a different Calling model for each Read model",
 )
 
@@ -282,8 +293,8 @@ check(vcfs and not leaky, f"{len(vcfs)} filtered VCF headers carry no site paths
 
 # 8. benchmarks.tsv: one alignment and one calling row for every Read set x Arm, plus the
 # timing-only Dorado CPU re-run (an extra Arm D calling row) at the CPU Depth only, and sane
-# numbers: positive times and memory, the caller command no longer than its job, and one
-# hardware model per device. Dorado runs on CPU here (the fixture has no GPU), so the main Arm D
+# numbers: positive times and memory, the configured threads, and one hardware model per
+# device (a config value). Dorado runs on CPU here (the fixture has no GPU), so the main Arm D
 # row and the re-run are told apart by timing_only.
 bench = read_tsv(outdir / "results/tables/benchmarks.tsv")
 got = sorted((r["read_model"], int(r["depth"]), r["arm"], r["step"], r["timing_only"]) for r in bench)
@@ -302,16 +313,18 @@ bad = [
         and float(r["cpu_time_s"]) > 0
         and re.fullmatch(r"\d+", r["threads"])
         and r["hardware"]
-        and r["host"]
-        and (r["command_wall_time_s"] == "" if r["step"] == "align" else 0 < float(r["command_wall_time_s"]) <= float(r["wall_time_s"]))
     )
 ]
-check(not bad, f"every benchmark row has positive times and memory, threads, hardware and host: {bad}")
+check(not bad, f"every benchmark row has positive times and memory, threads and hardware: {bad}")
 check(
     all(r["hardware"].startswith("CPU: ") and r["device"] == "cpu" for r in bench),
     "all fixture timings are on CPU, recorded as CPU: <model>",
 )
 check(len({r["hardware"] for r in bench}) == 1, f"one hardware model: {sorted({r['hardware'] for r in bench})}")
+check(
+    "driver" not in bench[0] and "host" not in bench[0] and "command_wall_time_s" not in bench[0],
+    "benchmarks.tsv has no host, driver or command_wall_time_s column (nothing is run in the jobs)",
+)
 for r in bench:
     if r["timing_only"] == "true" and r["arm"] != "D":
         check(False, f"timing-only row for Arm {r['arm']}")

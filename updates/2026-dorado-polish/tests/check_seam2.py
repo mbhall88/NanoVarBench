@@ -2,9 +2,9 @@
 
     python3 check_seam2.py <OUTDIR>
 
-Only the output tables are read (and, for the mixed-GPU run, whether the benchmarks rule
-failed and wrote no table). Every expected value is a literal from the hand-written inputs
-(see tests/seam2.sh for which Read set and Arm gets which).
+Only the output tables are read. Every expected value is a literal from the hand-written
+inputs (see tests/seam2.sh for which Read set and Arm gets which), or from the config for the
+provenance columns (caller, version, Calling model, container, hardware).
 """
 
 import csv
@@ -217,9 +217,33 @@ mismatched = [
 ]
 check(not mismatched, f"each sweep_best row is its curve's point at min_qual: {mismatched}")
 
-# 9. CPU Dorado is timing only: no results.tsv row comes from the CPU re-run. Every Arm D row
-# was scored on the GPU run's calls.
-cpu_scored = [k for k, r in by_key.items() if k[3] == "D" and not r["hardware"].startswith("NVIDIA")]
+# 9. Provenance comes from the config, not from per-job files: results.tsv carries each Arm's
+# caller, version, Calling model, container and hardware, and no Calling-model checksum column.
+RESULT_COLUMNS = [
+    "sample", "species", "dnd_sample", "read_model", "basecall_model", "depth", "actual_depth",
+    "actual_depth_by_contig", "arm", "aligner", "aligner_version", "preset", "caller",
+    "caller_version", "calling_model", "container", "hardware", "scoring_mode", "var_type",
+    "min_qual", "precision", "recall", "f1", "f1_qscore", "truth_tp", "query_tp", "truth_fn",
+    "query_fp",
+]
+got = list(results[0])
+check(got == RESULT_COLUMNS, f"results.tsv columns (no calling_model_sha256): {got}")
+CLAIR3_1 = "docker://quay.io/mbhall88/clair3@sha256:6a4c352e7d14ebb67bdad4be366dcbf6afa66cc7f0ee0b37a05cebe3f4754735"
+CLAIR3_2 = "docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202"
+DORADO_MODEL = "dna_r10.4.1_e8.2_400bps_polish_bacterial_methylation_v5.0.0"
+PROVENANCE = ("caller", "caller_version", "calling_model", "container", "hardware")
+for arm, want_prov in {
+    "A": ("clair3", "1.0.5", "r1041_e82_400bps_hac_v430", CLAIR3_1, "CPU: Test CPU"),
+    "B": ("clair3", "1.0.5", "r1041_e82_400bps_hac_v430", CLAIR3_1, "CPU: Test CPU"),
+    "C": ("clair3", "2.0.3", "r1041_e82_400bps_hac_v430", CLAIR3_2, "CPU: Test CPU"),
+    "D": ("dorado", "2.1.2", DORADO_MODEL, "", "Test GPU"),
+}.items():
+    got = {fields(r, *PROVENANCE) for k, r in by_key.items() if k[3] == arm}
+    check(got == {want_prov}, f"Arm {arm} rows carry the config's provenance: {sorted(got)}")
+
+# CPU Dorado is timing only: no results.tsv row comes from the CPU re-run, so every Arm D row
+# has the GPU's hardware.
+cpu_scored = [k for k, r in by_key.items() if k[3] == "D" and r["hardware"] != "Test GPU"]
 check(not cpu_scored, f"every Arm D row in results.tsv is the GPU run's ({len(cpu_scored)} are not)")
 
 # 10. benchmarks.tsv: one row per Sample x Read model x Depth x Arm x step (alignment, then
@@ -228,8 +252,8 @@ check(not cpu_scored, f"every Arm D row in results.tsv is the GPU run's ({len(cp
 bench = read_tsv(tables / "benchmarks.tsv")
 BENCH_COLUMNS = [
     "sample", "read_model", "depth", "arm", "step", "timing_only", "tool", "tool_version",
-    "alignment", "device", "hardware", "driver", "host", "threads",
-    "wall_time_s", "command_wall_time_s", "max_rss_mb", "max_vms_mb", "max_uss_mb",
+    "alignment", "device", "hardware", "threads",
+    "wall_time_s", "max_rss_mb", "max_vms_mb", "max_uss_mb",
     "max_pss_mb", "cpu_time_s", "mean_cpu_pct", "io_in_mb", "io_out_mb",
 ]
 got = list(bench[0]) if bench else []
@@ -259,34 +283,41 @@ def brow(arm, step, device, sample=WORKED, depth="50"):
     return bkey.get((sample, "hac", depth, arm, step, timing_only), {})
 
 
-# 11. Hardware and threads come from the caller_info of each job: the GPU model (with the
-# driver on its own column) for Dorado on the GPU, "CPU: <model>" for everything else.
+# 11. Hardware and threads come from the config: benchmark_hardware by device (the GPU model for
+# Dorado on the GPU, "CPU: <model>" for everything else) and each rule's threads. Nothing is
+# recorded in the jobs, so there are no host or driver columns.
 for key, r in bkey.items():
-    gpu = r["device"] == "gpu"
-    want_hw = ("NVIDIA H100 80GB HBM3", "610.43.02") if gpu else ("CPU: Test CPU", "")
-    if fields(r, "hardware", "driver") != want_hw or r["threads"] != "8":
-        check(False, f"{key}: hardware/driver/threads {fields(r, 'hardware', 'driver', 'threads')}")
+    want_hw = "Test GPU" if r["device"] == "gpu" else "CPU: Test CPU"
+    if r["hardware"] != want_hw or r["threads"] != "8":
+        check(False, f"{key}: hardware/threads {fields(r, 'hardware', 'threads')}")
 check(
-    {r["hardware"] for r in bench if r["device"] == "gpu"} == {"NVIDIA H100 80GB HBM3"},
-    "all GPU timings come from one GPU model",
+    {r["hardware"] for r in bench if r["device"] == "gpu"} == {"Test GPU"},
+    "all GPU timings carry the config's GPU model",
 )
 check(
-    fields(brow("D", "call", "gpu"), "tool", "tool_version", "host")
-    == ("dorado", "2.1.2+8b8fc5d", "node2"),
-    "Arm D GPU row records the Dorado version and host",
+    {r["hardware"] for r in bench if r["device"] == "cpu"} == {"CPU: Test CPU"},
+    "all CPU timings carry the config's CPU model",
+)
+check(
+    fields(brow("D", "call", "gpu"), "tool", "tool_version") == ("dorado", "2.1.2"),
+    "Arm D GPU row names Dorado and the config's version",
+)
+check(
+    fields(brow("C", "call", "cpu"), "tool", "tool_version") == ("clair3", "2.0.3"),
+    "Arm C row names Clair3 and the config's version",
 )
 
-# 12. Values and units. wall_time_s is Snakemake's `s` (seconds, the whole job script);
-# command_wall_time_s is the caller command alone, from caller_info. Memory is in MB, and
-# the worked Read set's values are the hand-written benchmark files' (tests/seam2/benchmarks/worked).
-VALUES = ("wall_time_s", "command_wall_time_s", "max_rss_mb", "max_vms_mb", "max_uss_mb", "max_pss_mb",
+# 12. Values and units. wall_time_s is Snakemake's `s` (seconds, the whole job script). Memory
+# is in MB, and the worked Read set's values are the hand-written benchmark files'
+# (tests/seam2/benchmarks/worked).
+VALUES = ("wall_time_s", "max_rss_mb", "max_vms_mb", "max_uss_mb", "max_pss_mb",
           "cpu_time_s", "mean_cpu_pct", "io_in_mb", "io_out_mb")
 for arm, step, device, want_row in (
-    ("A", "call", "cpu", ("70.50", "60.0", "2500.00", "11000.00", "1700.00", "1800.00", "74.00", "78.00", "0.50", "0.25")),
-    ("B", "call", "cpu", ("65.71", "55.0", "2493.90", "11684.41", "1706.18", "1834.10", "74.10", "78.35", "0.00", "0.00")),
-    ("C", "call", "cpu", ("120.25", "110.0", "3100.50", "15000.00", "2900.00", "2950.00", "300.00", "150.00", "0.00", "0.00")),
-    ("D", "call", "gpu", ("8.47", "5.0", "1509.10", "58344.97", "1488.54", "1490.65", "11.88", "138.92", "0.00", "0.00")),
-    ("D", "call", "cpu", ("101.60", "99.0", "12400.40", "29679.34", "12300.84", "12310.02", "114.96", "104.17", "0.00", "0.00")),
+    ("A", "call", "cpu", ("70.50", "2500.00", "11000.00", "1700.00", "1800.00", "74.00", "78.00", "0.50", "0.25")),
+    ("B", "call", "cpu", ("65.71", "2493.90", "11684.41", "1706.18", "1834.10", "74.10", "78.35", "0.00", "0.00")),
+    ("C", "call", "cpu", ("120.25", "3100.50", "15000.00", "2900.00", "2950.00", "300.00", "150.00", "0.00", "0.00")),
+    ("D", "call", "gpu", ("8.47", "1509.10", "58344.97", "1488.54", "1490.65", "11.88", "138.92", "0.00", "0.00")),
+    ("D", "call", "cpu", ("101.60", "12400.40", "29679.34", "12300.84", "12310.02", "114.96", "104.17", "0.00", "0.00")),
 ):
     got = fields(brow(arm, step, device), *VALUES)
     check(got == want_row, f"worked Read set, Arm {arm} {step} on {device}: {got}")
@@ -316,7 +347,6 @@ check(
     and fields(brow("D", "align", "cpu"), "tool", "tool_version") == ("minimap2", "2.31"),
     "align rows name the aligner and version of the Arm's alignment",
 )
-check(brow("D", "align", "cpu")["command_wall_time_s"] == "", "align rows have no command_wall_time_s")
 # every other Read set got the filler's values
 for key, r in bkey.items():
     s, _, d, a, step, timing_only = key
@@ -332,23 +362,6 @@ for key, r in bkey.items():
         want = ("100.00", "12000.00")
     if fields(r, "wall_time_s", "max_rss_mb") != want:
         check(False, f"{key}: wall time and max RSS {fields(r, 'wall_time_s', 'max_rss_mb')}, want {want}")
-
-# 14. Timings from more than one piece of hardware must not be mixed: with one job on an H100
-# PCIe among H100 HBM3 jobs (or one Clair3 job on another CPU model), the benchmarks rule
-# fails, names both models, and writes no table.
-for name, models in (
-    ("mixed_gpu", ("NVIDIA H100 PCIe", "NVIDIA H100 80GB HBM3")),
-    ("mixed_cpu", ("CPU: Other CPU", "CPU: Test CPU")),
-):
-    mixed = outdir / name
-    status = (mixed / "snakemake.status").read_text().strip()
-    log = (mixed / "snakemake.log").read_text()
-    check(status != "0", f"{name}: the benchmarks rule fails (exit status {status})")
-    check(all(m in log for m in models), f"{name}: the failure names both models {models}")
-    check(
-        not (mixed / "results/tables/benchmarks.tsv").exists(),
-        f"{name}: no benchmark table is written",
-    )
 
 if failures:
     sys.exit(f"{len(failures)} check(s) failed")

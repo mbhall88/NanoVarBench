@@ -89,8 +89,6 @@ for name, (mode, threshold) in SCORES.items():
     for t in VAR_TYPES:
         f1[(name, t)] = (s1[t], s2[t])
 
-info1, info2 = read_tsv(inp.info1)[0], read_tsv(inp.info2)[0]
-
 # --- TSV: one row per measurement -------------------------------------------------------
 rows = []
 for label, res in (("raw_vcf", raw), ("filtered_vcf", filt)):
@@ -173,10 +171,9 @@ L = [
     "- **Path 2:** `dorado aligner` (default `lr:hq`, bundled minimap2), then `dorado polish` "
     "without `--any-bam`.",
     "",
-    f"Dorado: path 1 `{info1['caller_version']}`, path 2 `{info2['caller_version']}`. "
-    f"Calling model: path 1 `{info1['calling_model']}`, path 2 `{info2['calling_model']}`. "
-    f"Device: path 1 {info1['device']} ({info1['hardware']}), path 2 {info2['device']} "
-    f"({info2['hardware']}).",
+    f"Dorado `{snakemake.params.dorado_version}`, Calling model "
+    f"`{snakemake.params.calling_model}`, device `{snakemake.params.device}` (from the config, "
+    "the same for both paths).",
     "",
     "## Calls",
     "",

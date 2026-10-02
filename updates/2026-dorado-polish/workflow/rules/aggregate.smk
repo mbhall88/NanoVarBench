@@ -1,4 +1,27 @@
-# Aggregation into tidy tables (results contract in #6), plus tool versions.
+# Aggregation into tidy tables (results contract in #6), plus tool versions. Which caller,
+# version, Calling model, container and hardware an Arm used comes from the config, not from
+# files the jobs write: the jobs are timed, so they only run their tool.
+
+
+def arm_device(arm):
+    """gpu or cpu: where the Arm's calling step runs. Clair3 only runs on CPU."""
+    return DORADO_DEVICE if ARMS[arm]["caller"] == "dorado" else "cpu"
+
+
+def arm_provenance(arm, read_model):
+    spec = ARMS[arm]
+    if spec["caller"] == "dorado":
+        model, image = dorado_model(arm), ""  # Dorado is a binary, not a container
+    else:
+        model = CLAIR3["calling_models"][read_model]
+        image = CONTAINERS[f"clair3-{spec['caller_version']}"]
+    return {
+        "caller": spec["caller"],
+        "caller_version": str(spec["caller_version"]),
+        "calling_model": model,
+        "container": image,
+        "hardware": HARDWARE[arm_device(arm)],
+    }
 
 
 def combos():
@@ -19,7 +42,6 @@ def combo_inputs(c):
         "sweep_summary": f"{score('sweep')}/precision-recall-summary.tsv",
         "pass_summary": f"{score('pass')}/precision-recall-summary.tsv",
         "sweep_pr": f"{score('sweep')}/precision-recall.tsv",
-        "caller_info": str(CALLER_INFO).format(**keys),
         "coverage": str(rules.actual_depth.output.tsv).format(**keys),
     }
 
@@ -46,6 +68,7 @@ rule aggregate:
         combos=[combo_inputs(c) for c in combos()],
         arms=ARMS,
         read_models=config["read_models"],
+        provenance=[arm_provenance(c["arm"], c["read_model"]) for c in combos()],
     script:
         "../scripts/aggregate.py"
 
@@ -53,7 +76,8 @@ rule aggregate:
 def benchmark_jobs():
     """The timed jobs behind each Arm's cost: its alignment, its calling step, and for
     Dorado the timing-only CPU re-run at the Depths in dorado.cpu_run. An Arm's alignment is
-    the one it shares with the other Arms using the same aligner, version and preset."""
+    the one it shares with the other Arms using the same aligner, version and preset.
+    Device and threads are the rule's configured ones."""
     cpu_depths = {int(d) for d in CPU_RUN.get("depths", [])}
     jobs = []
     for c in combos():
@@ -69,33 +93,46 @@ def benchmark_jobs():
                 tool=arm["aligner"],
                 tool_version=str(arm["aligner_version"]),
                 alignment=keys["aln"],
+                device="cpu",
+                threads=ALIGN_THREADS,
                 benchmark=fmt(BENCH_ALIGN),
-                info=fmt(ALIGN_INFO),
             )
         )
-        call = dict(base, step="call", alignment=keys["aln"], timing_only="false")
+        call = dict(
+            base,
+            step="call",
+            alignment=keys["aln"],
+            timing_only="false",
+            tool=arm["caller"],
+            tool_version=str(arm["caller_version"]),
+        )
         if arm["caller"] == "dorado":
-            jobs.append(dict(call, benchmark=fmt(BENCH_DORADO), info=fmt(CALLER_INFO)))
+            jobs.append(
+                dict(call, device=DORADO_DEVICE, threads=DORADO_THREADS, benchmark=fmt(BENCH_DORADO))
+            )
             if c["depth"] in cpu_depths:
                 jobs.append(
                     dict(
                         call,
                         timing_only="true",
+                        device="cpu",
+                        threads=DORADO_CPU_THREADS,
                         benchmark=fmt(BENCH_DORADO_CPU),
-                        info=fmt(CALLER_INFO_CPU),
                     )
                 )
         else:
-            jobs.append(dict(call, benchmark=fmt(BENCH_CLAIR3), info=fmt(CALLER_INFO)))
+            jobs.append(
+                dict(call, device="cpu", threads=CLAIR3["threads"], benchmark=fmt(BENCH_CLAIR3))
+            )
     return jobs
 
 
 rule benchmarks:
     """Runtime and memory of every Arm's alignment and calling step (Table 1, #12), from
-    Snakemake's benchmark files and each job's hardware. Fails if the GPU timings come from
-    more than one GPU model (or the CPU ones from more than one CPU model)."""
+    Snakemake's benchmark files. Hardware and threads are config values (benchmark_hardware
+    and each rule's threads), since the timed jobs run only their tool."""
     input:
-        files=[f for job in benchmark_jobs() for f in (job["benchmark"], job["info"])],
+        files=[job["benchmark"] for job in benchmark_jobs()],
     output:
         tsv=RESULTS / "tables/benchmarks.tsv",
     log:
@@ -105,6 +142,7 @@ rule benchmarks:
         runtime=5,
     params:
         jobs=benchmark_jobs(),
+        hardware=HARDWARE,
     script:
         "../scripts/benchmarks.py"
 

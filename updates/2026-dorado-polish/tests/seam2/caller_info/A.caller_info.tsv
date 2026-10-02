@@ -1,2 +1,0 @@
-caller	caller_version	calling_model	calling_model_sha256	container	device	hardware	host	threads	command_wall_s
-clair3	1.0.5	r1041_e82_400bps_hac_v430	pileup.index=aaaa	docker://quay.io/mbhall88/clair3@sha256:1111	cpu	cpu: Test CPU	node1	8	60.0

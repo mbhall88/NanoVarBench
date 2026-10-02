@@ -5,21 +5,18 @@ benchmarks.tsv has one row per Sample x Read model x Depth x Arm x step x timing
                cost) or call (Clair3 or `dorado polish`)
   timing_only  true for the Dorado CPU re-run at the Depths in dorado.cpu_run, a second call
                row for Arm D. These runs are never scored: they aren't in results.tsv.
-  device       gpu or cpu, with the hardware (the GPU model, or "CPU: <model>").
-Hardware, driver and threads come from each job's caller_info (align jobs write a small info
-file). wall_time_s is Snakemake's `s`, the whole job script (it includes writing caller_info,
-e.g. hashing the Dorado weights, which matters for a 5 s GPU run). command_wall_time_s is the
-caller command alone, from caller_info (empty for align). Memory is in MB and times in seconds,
-as in Snakemake's benchmark files.
-
-Timings only compare on one piece of hardware, so the script fails if the rows hold more than
-one GPU model, or more than one CPU model.
+  device       gpu or cpu: where the rule runs, from the config.
+  hardware     the config's benchmark_hardware for that device (the GPU model, or
+               "CPU: <model>"). Nothing is recorded in the jobs: the Slurm profile pins the
+               partition and constraint that provide this hardware.
+  threads      the rule's configured threads.
+wall_time_s is Snakemake's `s`, the whole job script, which only runs the tool (plus sorting
+and indexing for align). Memory is in MB and times in seconds, as in Snakemake's benchmark
+files.
 """
 
 import csv
-import re
 import sys
-from collections import Counter
 
 sys.stderr = open(snakemake.log[0], "w")
 
@@ -38,9 +35,13 @@ BENCHMARK_COLUMNS = {
 }
 COLUMNS = [
     "sample", "read_model", "depth", "arm", "step", "timing_only", "tool", "tool_version",
-    "alignment", "device", "hardware", "driver", "host", "threads",
-    "wall_time_s", "command_wall_time_s", "max_rss_mb", "max_vms_mb", "max_uss_mb",
+    "alignment", "device", "hardware", "threads",
+    "wall_time_s", "max_rss_mb", "max_vms_mb", "max_uss_mb",
     "max_pss_mb", "cpu_time_s", "mean_cpu_pct", "io_in_mb", "io_out_mb",
+]  # fmt: skip
+FROM_JOB = [
+    "sample", "read_model", "depth", "arm", "step", "timing_only", "tool", "tool_version",
+    "alignment", "device", "threads",
 ]  # fmt: skip
 
 
@@ -52,52 +53,16 @@ def read_one(path):
     return rows[0]
 
 
-def hardware_of(device, hardware):
-    """(gpu|cpu, hardware, driver). Dorado records the GPU as 'name, driver_version' and a
-    CPU as 'cpu: model'."""
-    if device == "cpu":
-        return "cpu", "CPU: " + re.sub(r"^cpu:\s*", "", hardware, flags=re.I), ""
-    name, _, driver = hardware.partition(",")
-    return "gpu", name.strip(), driver.strip()
-
-
 rows = []
 for job in snakemake.params.jobs:
-    info = read_one(job["info"])
     bench = read_one(job["benchmark"])
-    device, hardware, driver = hardware_of(
-        "cpu" if info["device"] == "cpu" else "gpu", info["hardware"]
-    )
     rows.append(
         {
-            **{k: job[k] for k in ("sample", "read_model", "depth", "arm", "step", "timing_only", "alignment")},
-            "tool": job.get("tool") or info["caller"],
-            "tool_version": job.get("tool_version") or info["caller_version"],
-            "device": device,
-            "hardware": hardware,
-            "driver": driver,
-            "host": info["host"],
-            "threads": info["threads"],
-            "command_wall_time_s": info.get("command_wall_s", ""),
+            **{k: job[k] for k in FROM_JOB},
+            "hardware": snakemake.params.hardware[job["device"]],
             **{ours: bench[theirs] for theirs, ours in BENCHMARK_COLUMNS.items()},
         }
     )
-
-# Timings from different hardware aren't comparable (H100 PCIe and SXM differ, as do CPUs).
-problems = []
-for device in ("gpu", "cpu"):
-    models = Counter(r["hardware"] for r in rows if r["device"] == device)
-    if len(models) > 1:
-        listing = "; ".join(f"{m} ({n} rows)" for m, n in sorted(models.items()))
-        problems.append(
-            f"timings from more than one {device.upper()} model: {listing}. "
-            f"Re-run the affected jobs on one model."
-        )
-if problems:
-    for p in problems:
-        print(p, file=sys.stderr)
-    sys.stderr.flush()
-    raise ValueError(" ".join(problems))
 
 with open(snakemake.output.tsv, "w", newline="") as fh:
     writer = csv.DictWriter(fh, fieldnames=COLUMNS, delimiter="\t", lineterminator="\n")

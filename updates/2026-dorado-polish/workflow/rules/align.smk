@@ -1,5 +1,7 @@
 # Each Arm's alignment of the Read set, the RG reheader Dorado needs, and actual depth.
 
+ALIGN_THREADS = 8  # the benchmarks table reports it
+
 
 rule align:
     """Align a Read set. Arms with the same aligner, version and preset share this BAM."""
@@ -9,12 +11,11 @@ rule align:
     output:
         bam=ALIGN / "{aln}.bam",
         bai=ALIGN / "{aln}.bam.bai",
-        info=ALIGN_INFO,
     log:
         LOGS / "align/{sample}.{read_model}.{depth}x.{aln}.log",
     benchmark:
         BENCH_ALIGN
-    threads: 8
+    threads: ALIGN_THREADS
     resources:
         mem_mb=8000,
         runtime=60,
@@ -28,11 +29,6 @@ rule align:
         minimap2 -t {threads} -aL --cs --MD -x {params.preset} {input.mutref} {input.fastq} \
             | samtools sort -@ 2 -T {output.bam}.tmp -o {output.bam} -
         samtools index {output.bam}
-
-        hardware="cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | sed 's/^ *//')"
-        mkdir -p "$(dirname {output.info})"
-        printf 'device\\thardware\\thost\\tthreads\\n' > {output.info}
-        printf 'cpu\\t%s\\t%s\\t%s\\n' "$hardware" "$(cat /proc/sys/kernel/hostname)" "{threads}" >> {output.info}
         """
 
 

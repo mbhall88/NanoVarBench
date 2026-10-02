@@ -52,9 +52,9 @@ n_differ = int(metrics[("filtered_vcf", "records_differ")])
 check(n_differ <= 0.05 * max(n1, n2), f"{n_differ} of {max(n1, n2)} filtered records differ")
 log = outdir / "work/logs/call_dorado_aligner_bam/ATCC_25922_fixture.hac.25x.D.log"
 check(log.exists(), "dorado polish ran on the dorado aligner BAM")
-info = read_tsv(out / "D.dorado_aligner.caller_info.tsv")[0]
-info1 = read_tsv(outdir / "results/calls/ATCC_25922_fixture/hac/25x/D.caller_info.tsv")[0]
-check(info["calling_model"] == info1["calling_model"], "both paths resolved the same Calling model")
+# Both paths use Arm D's Calling model from the config, and the report says which.
+model = next(r["calling_model"] for r in results if r["arm"] == "D")
+check(f"`{model}`" in report.read_text(), f"the report names the config's Calling model {model}")
 
 if failures:
     sys.exit(f"{len(failures)} check(s) failed")
