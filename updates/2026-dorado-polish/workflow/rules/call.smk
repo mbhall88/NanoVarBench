@@ -70,11 +70,12 @@ rule call_dorado:
         models_dir=DORADO_MODELS_DIR,
         device=DORADO["device"],
         min_depth=DORADO["min_depth"],
+        any_bam="--any-bam",  # a dorado aligner BAM doesn't need it (#13)
     shell:
         """
         outdir=$(dirname {output.vcf})
         {params.bin} polish {input.bam} {input.mutref} {params.model_flag} --vcf \
-            --min-depth {params.min_depth} --any-bam --ignore-read-groups \
+            --min-depth {params.min_depth} {params.any_bam} --ignore-read-groups \
             --models-directory {params.models_dir} --threads {threads} \
             --device {params.device} -o "$outdir" -v > "$outdir/stdout.txt" 2> {log}
 
@@ -118,6 +119,7 @@ use rule call_dorado as call_dorado_cpu with:
         models_dir=DORADO_MODELS_DIR,
         device="cpu",
         min_depth=DORADO["min_depth"],
+        any_bam="--any-bam",
 
 
 rule compare_dorado_devices:
