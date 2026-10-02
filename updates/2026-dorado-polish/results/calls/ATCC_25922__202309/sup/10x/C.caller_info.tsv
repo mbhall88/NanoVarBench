@@ -1,2 +1,0 @@
-caller	caller_version	calling_model	calling_model_sha256	container	device	hardware	host
-clair3	2.0.3	r1041_e82_400bps_sup_v430	full_alignment.pt=235bbde32c675bf09032a2bd410f63e521ee36e0a2ab70b9bdc1988dfe768f87;pileup.pt=806d7439555c157f3b75f2d7fb317c15985a2be6562184bb734c72aaf68d0287	docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202	cpu	cpu: AMD EPYC 9745 128-Core Processor	bun147

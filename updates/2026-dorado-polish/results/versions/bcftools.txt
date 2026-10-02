@@ -1,2 +1,0 @@
-image: docker://quay.io/biocontainers/bcftools@sha256:a3e0d3007ffe325c409b398f660840a3e7574d076219c6e82fc994ced87d47c3
-bcftools 1.24

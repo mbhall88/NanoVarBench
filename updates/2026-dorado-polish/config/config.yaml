@@ -16,7 +16,7 @@ download:
 
 # --- Outputs ------------------------------------------------------------------------
 work_dir: work                                        # reads, BAMs, raw calls, vcfdist output (large)
-results_dir: results                                  # tables, filtered VCFs, benchmarks (small, committed)
+results_dir: results                                  # tables, filtered VCFs, benchmarks (small, gitignored)
 
 # --- What to run --------------------------------------------------------------------
 run:

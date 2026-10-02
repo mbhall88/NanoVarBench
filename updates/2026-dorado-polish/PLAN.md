@@ -108,7 +108,7 @@ Pin every container by digest in the workflow.
 ## Storage
 
 - **Compute:** on HPC scratch (`work_dir`, set in the gitignored `config/local.yaml`). Scratch is purged: the earlier lr:hq working directory was lost this way.
-- **Git:** commit the small results as each stage finishes: the tables, depth, benchmark and version TSVs, caller info and figures. Filtered VCFs aren't committed (decided 2026-10-02): they'd add about 20 MB of binary files that every rerun rewrites, and the workflow regenerates them.
+- **Git:** commit code only while the work is in progress. Per-run outputs (filtered VCFs, per-Read-set TSVs, benchmarks, caller info) are never committed (decided 2026-10-02), because they bury the code in reviews and the workflow regenerates them. At the end, commit only the full run's final aggregated tables and the figures.
 - **Zenodo:** deposit the final set of filtered VCFs and summaries, from the full run, along with the post DOI.
 - **Not kept:** BAMs and reads, which can be regenerated from SRA.
 

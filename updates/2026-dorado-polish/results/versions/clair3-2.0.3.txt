@@ -1,2 +1,0 @@
-image: docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202
-Clair3 v2.0.3

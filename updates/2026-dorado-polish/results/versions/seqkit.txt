@@ -1,2 +1,0 @@
-image: docker://quay.io/biocontainers/seqkit@sha256:45fb535880be37dfed5be5517111fb8bfdd6234ef36e725b126a6131b1af2ef0
-seqkit v2.14.0
