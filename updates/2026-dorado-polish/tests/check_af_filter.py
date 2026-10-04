@@ -194,7 +194,7 @@ for rm in args.read_models:
         check(af > main, f"{rm} {TOP}x Arm {arm}: the AF filter at {t0} recovers SNPs --haploid_precise misses")
 
 # 6. Reusing a finished run (input_work_dir): a fresh work_dir schedules only the AF filter's
-# own jobs, none of the Read sets, alignments, Arms' calls or scores.
+# own jobs (its tables, and the PR curves of the figures' series), none of the Read sets, alignments, Arms' calls or scores.
 if args.reuse_dry_run:
     text = args.reuse_dry_run.read_text()
     stats = text[text.index("Job stats:"):].splitlines()
@@ -204,7 +204,7 @@ if args.reuse_dry_run:
         if len(parts) != 2 or parts[0] == "total":
             break
         jobs[parts[0]] = int(parts[1])
-    allowed = {"call_clair3_af", "af_filter", "filter_calls_af", "vcfdist_af", "clair3_af_filter_tables", "clair3_af_filter"}
+    allowed = {"call_clair3_af", "af_filter", "filter_calls_af", "vcfdist_af", "clair3_af_filter_tables", "clair3_af_filter_pr_curves", "clair3_af_filter"}
     n_runs = len(READ_SETS) * len(args.arms)
     check(set(jobs) <= allowed, f"the reuse run schedules only the AF filter's jobs: {jobs}")
     check(

@@ -381,7 +381,13 @@ check(
     "Table 1's times and memory are positive",
 )
 
-table_s1 = read_tsv_csv(outdir / "results/tables/table_s1_per_sample.csv")
+# The AF filter's rows (the run has the analysis on, #28) are checked by check_af_figures.py;
+# here, the Arms' rows alone.
+table_s1 = [
+    r
+    for r in read_tsv_csv(outdir / "results/tables/table_s1_per_sample.csv")
+    if "AF filter" not in r["Arm"]
+]
 check(
     len(table_s1) == len(READ_SETS) * len(ARMS),
     f"Table S1 has a row per Read set x Arm ({len(table_s1)} rows)",

@@ -1,6 +1,10 @@
 # Figures and tables for the post (#14), made from the aggregated tables alone: no rule here
 # reads a VCF, BAM or score file, so they can be rebuilt from results/tables/ without the
 # work directory. Rendered outputs are not committed with the code (see README).
+#
+# When the AF filter analysis (#20) is enabled for the Arm in figures.af_filter, Figures 1-3
+# and Table S1 add its series (#28), read from the analysis' own aggregated tables. Otherwise
+# these inputs are empty, the scripts get no series, and the outputs are unchanged.
 
 FIGURES = RESULTS / "figures"
 TABLES = RESULTS / "tables"
@@ -13,6 +17,9 @@ FIGURE_NAMES = {
 }
 TABLE1 = TABLES / "table1_runtime_memory.csv"
 TABLE_S1 = TABLES / "table_s1_per_sample.csv"
+# The AF filter series' inputs: its per-Sample scores and, for Figure 2, its PR curves.
+AF_RESULTS = [rules.clair3_af_filter_tables.output.tsv] if FIGURE_AF else []
+AF_CURVES = [rules.clair3_af_filter_pr_curves.output.tsv] if FIGURE_AF else []
 
 
 def figure_files(name):
@@ -31,6 +38,7 @@ rule fig1_best_f1_depth:
     """Figure 1: Best F1 against Depth, with Arm C's and D's Default-PASS scores dashed."""
     input:
         results=rules.aggregate.output.results,
+        af_results=AF_RESULTS,
     output:
         **figure_files("fig1"),
     log:
@@ -44,6 +52,7 @@ rule fig1_best_f1_depth:
     params:
         arm_labels=FIGURE_CONFIG["arm_labels"],
         default_pass_arms=FIGURE_CONFIG["default_pass_arms"],
+        af_filter=FIGURE_AF,
         dpi=FIGURE_CONFIG["dpi"],
     script:
         "../scripts/fig1_best_f1_depth.py"
@@ -54,6 +63,8 @@ rule fig2_pr_curves:
     input:
         results=rules.aggregate.output.results,
         pr_curves=rules.aggregate.output.pr_curves,
+        af_results=AF_RESULTS,
+        af_curves=AF_CURVES,
     output:
         **figure_files("fig2"),
     log:
@@ -67,6 +78,7 @@ rule fig2_pr_curves:
     params:
         arm_labels=FIGURE_CONFIG["arm_labels"],
         depths=FIGURE_CONFIG["pr_depths"],
+        af_filter=FIGURE_AF,
         dpi=FIGURE_CONFIG["dpi"],
     script:
         "../scripts/fig2_pr_curves.py"
@@ -76,6 +88,7 @@ rule fig3_per_sample_best_f1:
     """Figure 3: every Sample's Best F1 at every Depth, with the dnd Samples highlighted."""
     input:
         results=rules.aggregate.output.results,
+        af_results=AF_RESULTS,
     output:
         **figure_files("fig3"),
     log:
@@ -88,6 +101,7 @@ rule fig3_per_sample_best_f1:
         ENVS / "plot.yaml"
     params:
         arm_labels=FIGURE_CONFIG["arm_labels"],
+        af_filter=FIGURE_AF,
         dpi=FIGURE_CONFIG["dpi"],
     script:
         "../scripts/fig3_per_sample.py"
@@ -119,6 +133,7 @@ rule table_s1_per_sample:
     input:
         results=rules.aggregate.output.results,
         depth=rules.aggregate.output.depth,
+        af_results=AF_RESULTS,
     output:
         csv=TABLE_S1,
     log:
@@ -131,6 +146,7 @@ rule table_s1_per_sample:
         ENVS / "plot.yaml"
     params:
         arm_labels=FIGURE_CONFIG["arm_labels"],
+        af_filter=FIGURE_AF,
     script:
         "../scripts/table_s1_per_sample.py"
 
