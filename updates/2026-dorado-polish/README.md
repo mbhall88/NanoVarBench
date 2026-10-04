@@ -42,6 +42,9 @@ The workflow runs all four Arms end to end: A, B and C with Clair3 (#9) and D wi
 Arms are config entities (`arms:` in [config/config.yaml](config/config.yaml)); `run:`
 picks the Samples, Read models, Depths and Arms.
 
+**Results:** the full run's aggregated tables, the post's figures and tables, and the configs
+that made them are in [final/](final/) (#15).
+
 ## Benchmarks (#12)
 
 `results/tables/benchmarks.tsv` is Table 1: one row per Sample x Read model x Depth x Arm x
@@ -342,9 +345,10 @@ If Snakemake's env is on PATH but not activated, conda's stacked activation leav
 of the rule's env, so the Filter chain runs the wrong Python (`No module named 'cyvcf2'`).
 
 `profiles/bunya` submits to Slurm on Bunya: CPU rules (including `call_dorado_cpu`) go to
-`general`, and `call_dorado` goes to one full H100 on `gpu_cuda` or `gpu_sxm`. Large
-intermediates go to `work_dir`, and small results go to `results_dir`. Neither is committed:
-only the full run's final aggregated tables are, at the end (#15).
+`general`, with the timed ones on the `epyc5` nodes, and `call_dorado` goes to one full H100
+SXM on `gpu_sxm` (see Benchmarks). Large intermediates go to `work_dir`, and small results go
+to `results_dir`. Neither is committed: the full run's final aggregated tables and figures
+are in [final/](final/) (#15).
 
 ## Test
 

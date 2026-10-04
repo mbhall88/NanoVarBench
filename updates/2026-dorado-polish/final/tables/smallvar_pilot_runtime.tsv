@@ -1,0 +1,13 @@
+sample	read_model	depth	arm	tool	tool_version	calling_model	basecall_model_mismatch	device	hardware	threads	wall_time_s	max_rss_mb	max_vms_mb	cpu_time_s	mean_cpu_pct
+ATCC_25922__202309	hac	10	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	version	gpu	NVIDIA H100 80GB HBM3	8	7.96	2966.71	33609.02	16.54	205.56
+ATCC_25922__202309	hac	50	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	version	gpu	NVIDIA H100 80GB HBM3	8	17.80	7721.95	67448.04	50.66	284.27
+ATCC_25922__202309	sup	10	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	tier_and_version	gpu	NVIDIA H100 80GB HBM3	8	5.34	1978.70	30538.45	11.39	210.45
+ATCC_25922__202309	sup	50	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	tier_and_version	gpu	NVIDIA H100 80GB HBM3	8	11.62	4718.30	69437.95	38.24	327.64
+KPC2__202310	hac	10	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	version	gpu	NVIDIA H100 80GB HBM3	8	9.86	3240.43	31756.02	24.54	246.80
+KPC2__202310	hac	50	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	version	gpu	NVIDIA H100 80GB HBM3	8	21.04	8236.73	70717.03	68.63	325.54
+KPC2__202310	sup	10	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	tier_and_version	gpu	NVIDIA H100 80GB HBM3	8	13.34	2333.61	31755.52	19.79	148.31
+KPC2__202310	sup	50	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	tier_and_version	gpu	NVIDIA H100 80GB HBM3	8	15.05	6206.34	73980.52	55.63	368.58
+AMtb_1__202402	hac	10	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	version	gpu	NVIDIA H100 80GB HBM3	8	13.18	2677.70	30115.95	15.95	121.16
+AMtb_1__202402	hac	50	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	version	gpu	NVIDIA H100 80GB HBM3	8	19.24	6404.83	73444.03	49.58	256.79
+AMtb_1__202402	sup	10	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	tier_and_version	gpu	NVIDIA H100 80GB HBM3	8	6.94	1687.65	30136.95	11.81	168.27
+AMtb_1__202402	sup	50	D	dorado smallvar	2.1.2	dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0	tier_and_version	gpu	NVIDIA H100 80GB HBM3	8	12.26	4744.16	64344.02	34.67	281.65

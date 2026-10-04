@@ -1,0 +1,15 @@
+# The AF filter analysis (#20) behind final/tables/clair3_af_filter*. Use after the full run,
+# with config/local.yaml and its own work_dir and results_dir. Set input_work_dir to the full
+# run's work_dir to reuse its Read sets, alignments and scores (empty = this run's work_dir).
+run:
+  samples: [ATCC_10708__202309, ATCC_17802__202309, ATCC_25922__202309, ATCC_33560__202309,
+            ATCC_35221__202309, ATCC_19119__202309, ATCC_35897__202309, ATCC_BAA-679__202309,
+            BPH2947__202310, AJ292__202310, KPC2__202310, RDH275__202311, MMC234__202311,
+            AMtb_1__202402]
+  read_models: [hac, sup]
+  depths: [5, 10, 25, 50]
+  arms: [A, B, C, D]
+clair3_af_filter:
+  arms: [A, C]
+  reference_arm: D
+  input_work_dir:

@@ -1,0 +1,12 @@
+# The full run (#15) behind final/. Use with config/local.yaml (work_dir, results_dir and the
+# Dorado binary and models), e.g.
+#   snakemake -s workflow/Snakefile --workflow-profile profiles/bunya \
+#     --configfile config/local.yaml final/config/full_run.yaml
+run:
+  samples: [ATCC_10708__202309, ATCC_17802__202309, ATCC_25922__202309, ATCC_33560__202309,
+            ATCC_35221__202309, ATCC_19119__202309, ATCC_35897__202309, ATCC_BAA-679__202309,
+            BPH2947__202310, AJ292__202310, KPC2__202310, RDH275__202311, MMC234__202311,
+            AMtb_1__202402]
+  read_models: [hac, sup]
+  depths: [5, 10, 25, 50]
+  arms: [A, B, C, D]

@@ -1,0 +1,32 @@
+== bcftools
+image: docker://quay.io/biocontainers/bcftools@sha256:a3e0d3007ffe325c409b398f660840a3e7574d076219c6e82fc994ced87d47c3
+bcftools 1.24
+== clair3-1.0.5
+image: docker://quay.io/mbhall88/clair3@sha256:6a4c352e7d14ebb67bdad4be366dcbf6afa66cc7f0ee0b37a05cebe3f4754735
+Clair3 v1.0.5
+== clair3-2.0.3
+image: docker://hkubal/clair3@sha256:d56df84c2c7c508aaf0623b124d9926d366a58f34236505b26c055f848afa202
+Clair3 v2.0.3
+== minimap2-2.26
+image: docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:450ac9cf2a6a291d7ef0d3cebe29066c67edc642d325f568ec9196b8b83d51f7
+2.26-r1175
+samtools 1.17
+== minimap2-2.31
+image: docker://quay.io/biocontainers/mulled-v2-66534bcbb7031a148b13e2ad42583020b9cd25c4@sha256:966a1318a02cc3cda1785ccf62a4db2390e88dd48f303befa6c4a0a89a241a49
+2.31-r1302
+samtools 1.23.1
+== rasusa
+image: docker://quay.io/biocontainers/rasusa@sha256:e8c7b92c66abd96fdb861a4b7977c6ac47f1e9df6428d539a6616bb257bb0846
+rasusa 5.1.0
+== samtools
+image: docker://quay.io/biocontainers/samtools@sha256:a130447589651ed09252aa95a5e4f4132942cdb54d835d81a04a9a930d656561
+samtools 1.24
+== seqkit
+image: docker://quay.io/biocontainers/seqkit@sha256:45fb535880be37dfed5be5517111fb8bfdd6234ef36e725b126a6131b1af2ef0
+seqkit v2.14.0
+== vcfdist
+image: docker://timd1/vcfdist@sha256:d8b14a999a290f3b21dd4cde3bf52f2ad814b252823b8a4d9a01b548ae71dee3
+vcfdist v2.6.4
+== filter_env
+bcftools 1.24
+cyvcf2 0.34.0 python 3.12.14

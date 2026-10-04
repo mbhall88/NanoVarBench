@@ -1,0 +1,13 @@
+# The smallvar pilot (#29) behind final/tables/smallvar_pilot*. Use after the full run and the
+# AF filter analysis, with config/local.yaml and its own work_dir and results_dir. Set
+# input_work_dir to the full run's work_dir and af_filter.work_dir to the AF filter run's
+# (empty = this run's work_dir).
+run:
+  samples: [ATCC_25922__202309, KPC2__202310, AMtb_1__202402]
+  read_models: [hac, sup]
+  depths: [10, 50]
+  arms: [A, B, C, D]
+smallvar_pilot:
+  arms: [D]
+  input_work_dir:
+  af_filter: {arm: C, threshold: 0.65, work_dir:}
