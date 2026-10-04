@@ -59,6 +59,7 @@ def site_path_sed():
         "{truth_dir}": config["truth_dir"],
         "{dorado_models_dir}": config["dorado"]["models_dir"],
         "{clair3_models_dir}": config.get("clair3", {}).get("models_dir"),
+        "{input_work_dir}": (config.get("clair3_af_filter") or {}).get("input_work_dir"),
         "{update_dir}": str(WORKFLOW_DIR.parent),
     }
     pairs = set()

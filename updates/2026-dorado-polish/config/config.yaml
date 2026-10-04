@@ -38,6 +38,20 @@ dorado_aligner_check:
     max_records: 5            # records that differ in the filtered VCFs
     max_best_f1_diff: 0.0005  # largest |Best F1 difference| over SNP, INDEL and ALL
 
+# Optional extra analysis (#20): the AF filter. Clair3 runs on each listed Arm's alignment
+# without --haploid_precise (diploid genotypes), and each het call is made ALT when its
+# FORMAT/AF is >= the AF threshold and REF otherwise, before the Filter chain and vcfdist. It
+# runs on every Read set in `run`, at every threshold. Empty arms = off. It isn't an Arm and
+# adds no rows to results.tsv: its tables are <results_dir>/tables/clair3_af_filter{,_summary}.tsv.
+# `snakemake ... clair3_af_filter` runs just this.
+clair3_af_filter:
+  arms: []          # e.g. [A, C]: Clair3 Arms whose alignment, Clair3 and Calling model are used
+  thresholds: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8]
+  reference_arm: D  # the tables compare with this Arm's calls as well as the Arm's own
+  # A finished run's work_dir to read the Read sets' BAMs, Mutated references, Truth sets and
+  # the Arms' own scores from, so they aren't re-made. Empty = this run's work_dir.
+  input_work_dir:
+
 # --- Method -------------------------------------------------------------------------
 read_models:  # Read model -> basecall model, written into the @RG DS for Dorado (ADR-0004)
   hac: dna_r10.4.1_e8.2_400bps_hac@v4.3.0
