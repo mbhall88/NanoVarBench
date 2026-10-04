@@ -151,6 +151,13 @@ figures:
     D: Dorado
   default_pass_arms: [C, D]   # Figure 1's dashed Default-PASS lines
   pr_depths: [10, 50]         # Figure 2's PR curves; a Depth missing from the run is skipped
+  # The extra series (#28) for Figures 1-3 and Table S1 from the AF filter analysis (#20),
+  # labelled "Arm <arm> + AF filter (<threshold>)" and as an extra analysis, not an Arm. It is
+  # drawn when clair3_af_filter.arms includes this Arm; otherwise the figures and tables are
+  # as without it. The threshold must be one of clair3_af_filter.thresholds.
+  af_filter:
+    arm: C
+    threshold: 0.65
   dpi: 300
 
 max_indel: 50  # Filter chain: drop indels longer than this

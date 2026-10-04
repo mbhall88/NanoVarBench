@@ -6,7 +6,9 @@ no QUAL threshold) is marked on each curve. Each curve pools the Samples in the 
 and query counts are summed over the Samples at each QUAL threshold, so it is the PR curve of
 all their variants together. A Sample whose calls end below a threshold contributes no calls
 there: all its truth variants count as missed. The axes are zoomed to the curves' upper
-right corner, so each panel has its own limits.
+right corner, so each panel has its own limits. With the AF filter analysis enabled (#28) there
+is a further curve and Default-PASS point for Clair3 with the AF filter, from its own curves
+table (the AF filter's QUAL sweep for the one threshold the figure shows).
 """
 
 import sys
@@ -21,18 +23,25 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 from figures_common import (  # noqa: E402
-    COLOURS, DEPTH_NOTE, MARKERS, READ_MODELS, VAR_TYPES, ZORDERS, arm_label, present,
-    read_results, save,
+    AF_SERIES, COLOURS, DEPTH_NOTE, MARKERS, READ_MODELS, VAR_TYPES, ZORDERS, af_note, arm_label,
+    arm_order, present, read_results, save,
 )  # fmt: skip
 
 cfg = snakemake.params
+af = cfg.af_filter
 COUNTS = ["truth_tp", "truth_fn", "query_tp", "query_fp"]
 
-results = read_results(snakemake.input.results)
+results = read_results(snakemake.input.results, snakemake.input.af_results[0] if af else None, af)
 curves = pd.read_csv(snakemake.input.pr_curves, sep="\t")
+if af:
+    af_curves = pd.read_csv(snakemake.input.af_curves[0], sep="\t", dtype={"af_threshold": str})
+    af_curves = af_curves[
+        (af_curves["arm"] == af["arm"]) & (af_curves["af_threshold"] == af["threshold"])
+    ]
+    curves = pd.concat([curves, af_curves.drop(columns="af_threshold").assign(arm=AF_SERIES)])
 curves = curves[curves["var_type"].isin(VAR_TYPES)]
 read_models = present(results["read_model"], READ_MODELS)
-arms = sorted(results["arm"].unique())
+arms = arm_order(results["arm"].unique())
 depths = [d for d in cfg.depths if d in set(results["depth"])]
 for d in cfg.depths:
     if d not in depths:
@@ -114,18 +123,20 @@ for i, var_type in enumerate(VAR_TYPES):
             ax.set_ylabel("Precision")
 
 handles = [
-    Line2D([], [], color=COLOURS[a], lw=1.8, label=arm_label(a, cfg.arm_labels)) for a in arms
+    Line2D([], [], color=COLOURS[a], lw=1.8, label=arm_label(a, cfg.arm_labels, af)) for a in arms
 ]  # fmt: skip
 handles.append(
     Line2D([], [], color="white", mfc="#bbbbbb", mec="black", marker="o", ms=6.5, label="Default-PASS score (one marker per Arm)")
 )  # fmt: skip
-fig.legend(handles=handles, loc="lower center", ncol=len(handles), bbox_to_anchor=(0.5, -0.01))
+fig.legend(
+    handles=handles, loc="lower center", ncol=3 if af else len(handles),
+    bbox_to_anchor=(0.5, -0.045 if af else -0.01),
+)
 fig.suptitle("Precision-recall curves (QUAL sweep)", y=0.99, fontsize=11)
-fig.text(
-    0.5, -0.045,
-    f"Curves pool all {results['sample'].nunique()} Samples. Each panel is zoomed to its own range. {DEPTH_NOTE}",
-    ha="center", va="top", fontsize=7.5, color="#444444",
-)  # fmt: skip
+note = f"Curves pool all {results['sample'].nunique()} Samples. Each panel is zoomed to its own range. {DEPTH_NOTE}"
+if af:
+    note += "\n" + af_note(af)
+fig.text(0.5, -0.045 if not af else -0.08, note, ha="center", va="top", fontsize=7.5, color="#444444")
 fig.tight_layout(rect=(0, 0.05, 1, 0.97))
 save(fig, [snakemake.output.png, snakemake.output.svg], cfg.dpi)
 print(f"arms={arms} depths={depths} read_models={read_models}", file=sys.stderr)

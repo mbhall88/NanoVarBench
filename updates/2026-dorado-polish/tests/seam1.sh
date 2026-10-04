@@ -11,8 +11,10 @@
 # The Dorado CPU re-run is only done at the largest Depth, and the dorado aligner check
 # (#13) on hac at 25x when both are in the run.
 # The AF filter analysis (#20) runs for Arm C on every Read set at AF_THRESHOLDS (default
-# "0.5 0.8"), and a dry-run with a fresh work_dir reading this run's (input_work_dir) checks
-# that only its own jobs are scheduled.
+# "0.5 0.65 0.8"), and a dry-run with a fresh work_dir reading this run's (input_work_dir) checks
+# that only its own jobs are scheduled. The figures and Table S1 then have its series at
+# AF_FIGURE_THRESHOLD (default 0.65, figures.af_filter), and the same figures and table rendered
+# from this run's aggregated tables with the analysis off are checked to be without it (#28).
 # DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills with
 # `dorado download` (needs internet). CLAIR3_MODELS_DIR defaults to
 # $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
@@ -40,7 +42,8 @@ ALIGNER_CHECK=
 if [[ " $READ_MODELS " == *" hac "* && " $DEPTHS " == *" 25 "* ]]; then
   ALIGNER_CHECK="{samples: [ATCC_25922_fixture], read_models: [hac], depths: [25]}"
 fi
-AF_THRESHOLDS=${AF_THRESHOLDS:-0.5 0.8}
+AF_THRESHOLDS=${AF_THRESHOLDS:-0.5 0.65 0.8}
+AF_FIGURE_THRESHOLD=${AF_FIGURE_THRESHOLD:-0.65}
 yaml_list() { local out=; for x in "$@"; do out+="${out:+, }$x"; done; echo "[$out]"; }
 echo "Seam 1 output: $OUTDIR"
 
@@ -71,6 +74,7 @@ run:
   arms: [A, B, C, D]
 dorado_aligner_check: ${ALIGNER_CHECK:-{\}}
 clair3_af_filter: {arms: [C], thresholds: $(yaml_list $AF_THRESHOLDS), reference_arm: D}
+figures: {af_filter: {arm: C, threshold: $AF_FIGURE_THRESHOLD}}
 dorado:
   bin: {"2.1.2": $DORADO}
   models_dir: $MODELS
@@ -105,3 +109,24 @@ snakemake clair3_af_filter -n -s workflow/Snakefile \
   > "$OUTDIR/af_reuse.dry_run.txt"
 python3 "$HERE/check_af_filter.py" "$OUTDIR" --arms C --reference-arm D --thresholds $AF_THRESHOLDS \
   --read-models $READ_MODELS --depths $DEPTHS --reuse-dry-run "$OUTDIR/af_reuse.dry_run.txt"
+
+# The figures and Table S1 with the AF filter off: this run's aggregated tables in a fresh
+# results_dir, the analysis disabled, and only the figure and table rules allowed to run.
+mkdir -p "$OUTDIR/af_off/results/tables"
+cp "$OUTDIR"/results/tables/{results,pr_curves,depth}.tsv "$OUTDIR/af_off/results/tables/"
+cat > "$OUTDIR/seam1_config/af_off.yaml" <<YAML
+work_dir: $OUTDIR/af_off/work
+results_dir: $OUTDIR/af_off/results
+clair3_af_filter: {arms: []}
+YAML
+OFF=$OUTDIR/af_off/results
+snakemake "$OFF/figures/fig1_best_f1_depth.png" "$OFF/figures/fig1_best_f1_depth.svg" \
+  "$OFF/figures/fig2_pr_curves.png" "$OFF/figures/fig2_pr_curves.svg" \
+  "$OFF/figures/fig3_per_sample_best_f1.png" "$OFF/figures/fig3_per_sample_best_f1.svg" \
+  "$OFF/tables/table_s1_per_sample.csv" -s workflow/Snakefile \
+  --configfile "$OUTDIR/seam1_config/config.yaml" "$OUTDIR/seam1_config/af_off.yaml" \
+  --cores "$CORES" --software-deployment-method conda \
+  --conda-prefix "$UPDATE/.snakemake/conda" \
+  --allowed-rules fig1_best_f1_depth fig2_pr_curves fig3_per_sample_best_f1 table_s1_per_sample
+python3 "$HERE/check_af_figures.py" "$OUTDIR" --arm C --threshold "$AF_FIGURE_THRESHOLD" \
+  --read-models $READ_MODELS --depths $DEPTHS

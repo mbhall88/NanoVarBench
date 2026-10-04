@@ -112,12 +112,26 @@ code: the rendered outputs go in once, with the final aggregated tables (#15).
   its own range.
 - **Figure 3** (`fig3_per_sample_best_f1`): every Sample's Best F1 at every Depth, a dot per
   Arm, with the dnd Samples shaded and their names in red (dorado#1599).
+- **The AF filter series** (#28): with the AF filter analysis enabled (see below), Figures 1-3
+  and Table S1 gain a series for Clair3 with the AF filter, labelled "Arm C + AF filter (0.65),
+  extra analysis" since it is not one of the Arms. The Arm and threshold are
+  `figures.af_filter` in the config (`arm: C`, `threshold: 0.65`); the threshold must be one of
+  `clair3_af_filter.thresholds`, and the series is drawn when `clair3_af_filter.arms` includes
+  the Arm. Figure 1 gives it a solid Best F1 line and a dashed Default-PASS line like Arms C and
+  D, Figure 2 its PR curve (from `tables/clair3_af_filter_pr_curves.tsv`) and Default-PASS
+  point, and Figure 3 a dot per Sample. It is bluish green with a plus marker, and each
+  figure's note says it is an extra analysis. In Table S1 it is one more row per Read set,
+  after the Arms' rows, with the Arm column "C + AF filter (0.65), extra analysis, not an Arm".
+  The series is read from `tables/clair3_af_filter.tsv`, so the figure and table rules need
+  that table (and the PR curves table) next to the main ones. With the analysis off, the
+  figures and tables are as without it.
 - **Table 1** (`tables/table1_runtime_memory.csv`): runtime and memory, from
   `benchmarks.tsv`. One row per step, tool and Arm(s) at each Depth, with the median and range
   of wall time and peak RSS over the Samples and Read models. The alignment shared by Arms B,
   C and D is one row (not counted three times), and Dorado on CPU (timing only, 50x) is a row
   beside Dorado on GPU. Peak RSS is host memory: GPU memory isn't measured.
-- **Table S1** (`tables/table_s1_per_sample.csv`): a row per Sample x Read model x Depth x Arm,
+- **Table S1** (`tables/table_s1_per_sample.csv`): a row per Sample x Read model x Depth x Arm
+  (and the AF filter series, when it is on),
   with the Read set's actual depth, overall and per contig (from `depth.tsv`), and for SNP
   and INDEL the Best F1 (with the QUAL threshold it was reached at) and the Default-PASS score,
   each with precision and recall. Its headers are readable, for the site's interactive
@@ -134,6 +148,12 @@ snakemake results/figures/fig1_best_f1_depth.png results/figures/fig2_pr_curves.
     --software-deployment-method conda --allowed-rules fig1_best_f1_depth fig2_pr_curves \
     fig3_per_sample_best_f1 table1_runtime_memory table_s1_per_sample
 ```
+
+With the AF filter series on, also copy `clair3_af_filter.tsv` and
+`clair3_af_filter_pr_curves.tsv` into `tables/`, or set `clair3_af_filter.arms: []` to render
+without it. Make the PR curves table, if the run lacks it, from the AF filter's score files
+in `work_dir`: `snakemake results/tables/clair3_af_filter_pr_curves.tsv --allowed-rules
+clair3_af_filter_pr_curves`.
 
 ## Clair3 (Arms A, B and C)
 
@@ -200,7 +220,9 @@ It uses Clair3's diploid output, not `--haploid_sensitive`. Both recover the rep
 but `--haploid_sensitive` writes 0/1 and 1/1 alike as `1` and drops multi-allelic (1/2) sites
 (Clair3's `CallVariants.py`), so the filter couldn't tell a het from a hom call.
 
-`clair3_af_filter_tables` writes two tables:
+`clair3_af_filter_tables` writes two tables, and `clair3_af_filter_pr_curves` a third, the QUAL
+sweep's PR curves for the one Arm and threshold the figures draw (`figures.af_filter`, #28; the
+other thresholds' curves aren't tabulated):
 
 - `results/tables/clair3_af_filter.tsv`: one row per Sample x Read model x Depth x Arm x
   `calls` x `af_threshold` x variant type x scoring mode, with the columns of `results.tsv`'s
@@ -215,6 +237,9 @@ but `--haploid_sensitive` writes 0/1 and 1/1 alike as `1` and drops multi-alleli
   threshold costs against each Sample's best), and `gap_to_reference_closed`: the share of the
   gap in median F1 between the Arm's own calls and the reference Arm that this closes, when
   the reference Arm is ahead.
+- `results/tables/clair3_af_filter_pr_curves.tsv`: `pr_curves.tsv`'s layout (one row per
+  Sample x Read model x Depth x QUAL threshold x variant type) plus `af_threshold`, for the
+  figures' Arm and threshold, so Figure 2 can draw the series.
 
 To run it on a finished run's Read sets without re-making them, set
 `clair3_af_filter.input_work_dir` to that run's `work_dir`, and give this run a new
@@ -284,12 +309,17 @@ The fixture's reads (`reads.hac.fastq.gz`, `reads.sup.fastq.gz`, about 1.8 MB ea
 real ATCC_25922 reads for the window, thinned to an even ~52x; `tests/fixture/make_fixture.sh`
 records how they were made.
 
-Seam 1 also runs the AF filter for Arm C at `AF_THRESHOLDS` (default 0.5 and 0.8), and
+Seam 1 also runs the AF filter for Arm C at `AF_THRESHOLDS` (default 0.5, 0.65 and 0.8), and
 `tests/check_af_filter.py` checks it: Clair3 ran without a haploid mode, every het was resolved
 by its AF and every hom call left alone, the tables' main rows match `results.tsv`, the
 summary follows the per-Sample table, the AF filter recovers repeat SNPs that
 `--haploid_precise` drops at 50x, and reusing the run's `work_dir` schedules only the AF
-filter's jobs.
+filter's jobs. The run's figures and Table S1 then have the AF filter series at
+`AF_FIGURE_THRESHOLD` (default 0.65), and seam 1 renders them again from the same aggregated
+tables with the analysis off. `tests/check_af_figures.py` checks that Table S1 has one labelled
+AF filter row per Read set with the AF table's scores, that the Arms' rows are the same on and
+off, that the PR curves table is the Arm's sweep at the threshold, and that each figure names
+the series when on and never when off.
 
 Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
 precision-recall curves, `samtools coverage` output and benchmark files

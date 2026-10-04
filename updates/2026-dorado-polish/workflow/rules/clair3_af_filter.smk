@@ -13,7 +13,8 @@
 # call, so the AF threshold only resolves the hets and leaves the hom calls alone.
 #
 # This is not an Arm: it adds nothing to results.tsv. Its tables are
-# <results_dir>/tables/clair3_af_filter{,_summary}.tsv. `snakemake ... clair3_af_filter`
+# <results_dir>/tables/clair3_af_filter{,_summary}.tsv, plus the PR curves of the one series
+# the figures add (clair3_af_filter_pr_curves.tsv, #28). `snakemake ... clair3_af_filter`
 # runs just this.
 
 AF = config.get("clair3_af_filter") or {}
@@ -36,6 +37,25 @@ if AF_ARMS:
             raise ValueError(f"clair3_af_filter.thresholds: {t} is not in (0, 1]")
     if AF_REFERENCE_ARM is not None and AF_REFERENCE_ARM not in ARMS:
         raise ValueError(f"clair3_af_filter.reference_arm {AF_REFERENCE_ARM} is not an Arm")
+
+
+
+def figure_af_filter():
+    """The AF filter series the figures and Table S1 add (figures.af_filter, #28): None when
+    the analysis isn't run for that Arm, else its Arm and AF threshold, the threshold written
+    as the tables write it."""
+    spec = config["figures"].get("af_filter")
+    if not spec or spec["arm"] not in AF_ARMS:
+        return None
+    threshold = f"{float(spec['threshold']):.2f}"
+    if threshold not in AF_THRESHOLDS:
+        raise ValueError(
+            f"figures.af_filter.threshold {threshold} is not in clair3_af_filter.thresholds"
+        )
+    return {"arm": spec["arm"], "threshold": threshold}
+
+
+FIGURE_AF = figure_af_filter()
 
 # The Arms' Clair3 options without the haploid mode, so Clair3 writes 0/1, 1/1 and 1/2.
 CLAIR3_AF_OPTIONS = [
@@ -221,10 +241,60 @@ localrules:
     clair3_af_filter_tables,
 
 
+def af_curve_files():
+    """The QUAL sweep's precision-recall file of the figures' AF filter series, per Read set."""
+    if not FIGURE_AF:
+        return []
+    return [
+        str(AF_SCORE).format(
+            sample=s, read_model=rm, depth=d, arm=FIGURE_AF["arm"], af=FIGURE_AF["threshold"],
+            mode="sweep",
+        )
+        + "/precision-recall.tsv"
+        for s in RUN_SAMPLES
+        for rm in RUN_READ_MODELS
+        for d in RUN_DEPTHS
+    ]
+
+
+rule clair3_af_filter_pr_curves:
+    """The QUAL sweep's precision-recall curves of the AF filter series that Figure 2 draws
+    (figures.af_filter), in pr_curves.tsv's layout. The curves of the other thresholds aren't
+    tabulated; the Arms' own are in pr_curves.tsv."""
+    input:
+        files=af_curve_files(),
+    output:
+        tsv=RESULTS / "tables/clair3_af_filter_pr_curves.tsv",
+    log:
+        LOGS / "clair3_af_filter_pr_curves.log",
+    threads: 1
+    resources:
+        mem_mb=2000,
+        runtime=10,
+    params:
+        read_sets=[
+            dict(sample=s, read_model=rm, depth=d)
+            for s in RUN_SAMPLES
+            for rm in RUN_READ_MODELS
+            for d in RUN_DEPTHS
+        ],
+        arm=FIGURE_AF["arm"] if FIGURE_AF else "",
+        af_threshold=FIGURE_AF["threshold"] if FIGURE_AF else "",
+    script:
+        "../scripts/clair3_af_filter_pr_curves.py"
+
+
+localrules:
+    clair3_af_filter_pr_curves,
+
+
 def af_filter_targets():
     if not AF_ARMS:
         return []
-    return [rules.clair3_af_filter_tables.output.tsv, rules.clair3_af_filter_tables.output.summary]
+    targets = [rules.clair3_af_filter_tables.output.tsv, rules.clair3_af_filter_tables.output.summary]
+    if FIGURE_AF:
+        targets.append(rules.clair3_af_filter_pr_curves.output.tsv)
+    return targets
 
 
 rule clair3_af_filter:
