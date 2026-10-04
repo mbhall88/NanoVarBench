@@ -60,6 +60,7 @@ def site_path_sed():
         "{dorado_models_dir}": config["dorado"]["models_dir"],
         "{clair3_models_dir}": config.get("clair3", {}).get("models_dir"),
         "{input_work_dir}": (config.get("clair3_af_filter") or {}).get("input_work_dir"),
+        "{smallvar_input_work_dir}": (config.get("smallvar_pilot") or {}).get("input_work_dir"),
         "{update_dir}": str(WORKFLOW_DIR.parent),
     }
     pairs = set()
@@ -67,8 +68,9 @@ def site_path_sed():
         if d:
             for form in (os.path.abspath(d), os.path.realpath(d)):
                 pairs.add((form.rstrip("/"), placeholder))
-    # Longest first, so a directory inside another is replaced before its parent.
-    pairs = sorted(pairs, key=lambda pair: -len(pair[0]))
+    # Longest first, so a directory inside another is replaced before its parent. Ties are
+    # sorted by path: a set's order changes between runs, and so would this param.
+    pairs = sorted(pairs, key=lambda pair: (-len(pair[0]), pair))
     escape = lambda path: re.sub(r"([.\[\]*^$\\#])", r"\\\1", path)
     return "; ".join(f"s#{escape(path)}#{placeholder}#g" for path, placeholder in pairs)
 

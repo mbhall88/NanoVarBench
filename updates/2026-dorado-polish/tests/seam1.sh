@@ -15,6 +15,9 @@
 # that only its own jobs are scheduled. The figures and Table S1 then have its series at
 # AF_FIGURE_THRESHOLD (default 0.65, figures.af_filter), and the same figures and table rendered
 # from this run's aggregated tables with the analysis off are checked to be without it (#28).
+# The smallvar pilot (#29) runs for Arm D on every Read set, on CPU like the rest of Dorado here,
+# with the AF filter at the lowest AF threshold beside it, and a reuse dry-run like the AF
+# filter's checks that only its own jobs are scheduled.
 # DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills with
 # `dorado download` (needs internet). CLAIR3_MODELS_DIR defaults to
 # $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
@@ -44,6 +47,7 @@ if [[ " $READ_MODELS " == *" hac "* && " $DEPTHS " == *" 25 "* ]]; then
 fi
 AF_THRESHOLDS=${AF_THRESHOLDS:-0.5 0.65 0.8}
 AF_FIGURE_THRESHOLD=${AF_FIGURE_THRESHOLD:-0.65}
+SMALLVAR_AF=$(tr ' ' '\n' <<< "$AF_THRESHOLDS" | sort -g | head -1)
 yaml_list() { local out=; for x in "$@"; do out+="${out:+, }$x"; done; echo "[$out]"; }
 echo "Seam 1 output: $OUTDIR"
 
@@ -75,6 +79,7 @@ run:
 dorado_aligner_check: ${ALIGNER_CHECK:-{\}}
 clair3_af_filter: {arms: [C], thresholds: $(yaml_list $AF_THRESHOLDS), reference_arm: D}
 figures: {af_filter: {arm: C, threshold: $AF_FIGURE_THRESHOLD}}
+smallvar_pilot: {arms: [D], compare_arms: [C, D], af_filter: {arm: C, threshold: $SMALLVAR_AF}}
 dorado:
   bin: {"2.1.2": $DORADO}
   models_dir: $MODELS
@@ -130,3 +135,23 @@ snakemake "$OFF/figures/fig1_best_f1_depth.png" "$OFF/figures/fig1_best_f1_depth
   --allowed-rules fig1_best_f1_depth fig2_pr_curves fig3_per_sample_best_f1 table_s1_per_sample
 python3 "$HERE/check_af_figures.py" "$OUTDIR" --arm C --threshold "$AF_FIGURE_THRESHOLD" \
   --read-models $READ_MODELS --depths $DEPTHS
+
+# The smallvar pilot reusing this run's Read sets, alignments and scores (and its AF filter
+# scores) from a fresh work_dir: a dry-run, whose job counts check_smallvar_pilot.py reads.
+cat > "$OUTDIR/seam1_config/smallvar_reuse.yaml" <<YAML
+work_dir: $OUTDIR/smallvar_reuse/work
+results_dir: $OUTDIR/smallvar_reuse/results
+smallvar_pilot:
+  arms: [D]
+  compare_arms: [C, D]
+  af_filter: {arm: C, threshold: $SMALLVAR_AF, work_dir: $OUTDIR/work}
+  input_work_dir: $OUTDIR/work
+YAML
+snakemake smallvar_pilot -n -s workflow/Snakefile \
+  --configfile "$OUTDIR/seam1_config/config.yaml" "$OUTDIR/seam1_config/smallvar_reuse.yaml" \
+  --software-deployment-method apptainer conda \
+  --conda-prefix "$UPDATE/.snakemake/conda" --apptainer-prefix "$UPDATE/.snakemake/singularity" \
+  > "$OUTDIR/smallvar_reuse.dry_run.txt"
+python3 "$HERE/check_smallvar_pilot.py" "$OUTDIR" --arms D --compare-arms C D --af-arm C \
+  --af-threshold "$SMALLVAR_AF" --read-models $READ_MODELS --depths $DEPTHS \
+  --reuse-dry-run "$OUTDIR/smallvar_reuse.dry_run.txt"

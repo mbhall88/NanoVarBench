@@ -258,6 +258,65 @@ The Bunya profile groups each threshold's `af_filter`, `filter_calls_af` and two
 so it isn't pinned to the timed CPU nodes. Seam 1 runs it for Arm C on the fixture, then
 checks that a fresh `work_dir` reading the fixture run's schedules only these jobs.
 
+## smallvar pilot (#29, optional)
+
+`dorado smallvar` is Dorado's diploid small-variant caller. This pilot asks whether it is worth
+a place in the post. Dorado 2.1.2 ships smallvar models only for hac v5.2.0 and v6.0.0 reads
+(`dna_r10.4.1_e8.2_400bps_hac@v{5.2.0,6.0.0}_smallvar@v1.0`): none for v4.3.0, which our reads
+were basecalled with, and none for sup. The pilot forces in `smallvar_pilot.model` (hac v6.0.0)
+with `--model-override`, which skips Dorado's compatibility check (Dorado warns "Variant calling
+model is not compatible with the input BAM. This may produce inferior results"). **Every result
+is a Basecall-model mismatch**: of version on hac reads, and of tier and version on sup reads.
+The tables label each smallvar row (`basecall_model_mismatch`: `version` or
+`tier_and_version`). It isn't an Arm and changes nothing in `results.tsv` or `benchmarks.tsv`.
+For each Dorado Arm listed under `smallvar_pilot.arms` (empty = off), on every Read set in `run`:
+
+1. `call_dorado_smallvar` runs `dorado smallvar` on the Arm's RG-reheadered BAM (ADR-0004), with
+   the whole genome (`genome.bed`) as `--hemizygous-regions`, so it makes haploid calls. It
+   needs the hidden `--any-bam` flag, as polish does, and gets `--min-depth 2` (ADR-0002) and
+   `--ignore-read-groups`. The rest are Dorado's defaults, including `--pass-qual-filter 3`.
+   Only the tool runs in the job, which is timed.
+2. The calls go through the Filter chain and vcfdist with the Arms' settings (QUAL sweep and
+   PASS only).
+
+**No AF filter.** smallvar's VCF has only `GT` and `GQ` in FORMAT. INFO declares `DP` but
+leaves every record's INFO empty, and `--gvcf` adds only reference blocks (`END`, `LEN`).
+With no AF and no allele depths, a het can't be resolved by AF, so the pilot has no diploid +
+AF filter mode. In the diploid mode the Filter chain's `filter_hets.py` would turn every het
+into REF (it has no AD or AC to go on), which is what `--hemizygous-regions` gives anyway. On
+a 200 kb test (ATCC_25922 hac 50x) the diploid run's hom calls were exactly the haploid run's
+records, and its 3 hets were all false.
+
+`smallvar_pilot_tables` writes two tables:
+
+- `results/tables/smallvar_pilot.tsv`: one row per Sample x Read model x Depth x `calls` x Arm
+  x variant type x scoring mode, with the columns of `results.tsv`'s scores. `calls` is
+  `smallvar_haploid`, `main` for the Arms in `smallvar_pilot.compare_arms` (C and D), copied
+  from their scores, or `af_filter` for Arm C's AF filter (#20) at `af_filter.threshold`
+  (0.65), copied from its scores. `calling_model` and `basecall_model_mismatch` say which model
+  made each row's calls and how it differs from the reads' basecall model (`none` for the
+  Arms).
+- `results/tables/smallvar_pilot_runtime.tsv`: one row per smallvar job, with the job's wall
+  time and memory and, as in `benchmarks.tsv`, the device, hardware and threads from the config.
+  The Bunya profile runs it on the same H100 SXM as `call_dorado`.
+
+To run it on a finished run's Read sets without re-making them, set
+`smallvar_pilot.input_work_dir` to that run's `work_dir` (BAMs, Mutated references, Truth sets
+and the Arms' scores) and `smallvar_pilot.af_filter.work_dir` to the AF filter run's (its
+scores), and give this run a new `work_dir` and `results_dir`. Check with `-n` first:
+
+```sh
+# my_smallvar.yaml sets work_dir, results_dir, run, and
+#   smallvar_pilot: {arms: [D], input_work_dir: /path/to/full/run/work,
+#                    af_filter: {arm: C, threshold: 0.65, work_dir: /path/to/af/run/work}}
+snakemake smallvar_pilot -s workflow/Snakefile --workflow-profile profiles/bunya \
+    --configfile config/local.yaml my_smallvar.yaml -n
+```
+
+`download_smallvar_model` fetches the model into `dorado.models_dir`. The Bunya profile groups
+each Read set's Filter chain and two vcfdist runs into one Slurm job. Seam 1 runs the pilot for
+Arm D on the fixture, on CPU.
+
 ## Requirements
 
 Snakemake 9 with the Slurm executor plugin, Apptainer, conda/mamba, and the
@@ -320,6 +379,14 @@ tables with the analysis off. `tests/check_af_figures.py` checks that Table S1 h
 AF filter row per Read set with the AF table's scores, that the Arms' rows are the same on and
 off, that the PR curves table is the Arm's sweep at the threshold, and that each figure names
 the series when on and never when off.
+
+Seam 1 also runs the smallvar pilot for Arm D, beside Arm C's AF filter at the lowest
+`AF_THRESHOLDS`, and `tests/check_smallvar_pilot.py` checks it: smallvar used the overridden
+model and warned of the mismatch, its calls are haploid with only GT and GQ (no AF or allele
+depths), every smallvar row carries its Basecall-model mismatch, the Arm and AF filter rows
+match `results.tsv` and `clair3_af_filter.tsv`, neither `results.tsv` nor `benchmarks.tsv`
+has smallvar rows, the runtime table has a row per Read set, and reusing the run's `work_dir`
+schedules only the pilot's jobs.
 
 Seam 2 tests the aggregation on its own. It writes hand-written vcfdist summaries and
 precision-recall curves, `samtools coverage` output and benchmark files

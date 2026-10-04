@@ -52,6 +52,26 @@ clair3_af_filter:
   # the Arms' own scores from, so they aren't re-made. Empty = this run's work_dir.
   input_work_dir:
 
+# Optional pilot (#29): dorado smallvar, Dorado's diploid small-variant caller, on each listed
+# Dorado Arm's RG-reheadered alignment, with the whole genome passed as --hemizygous-regions so
+# it makes haploid calls. Dorado 2.1.2 has smallvar models only for hac v5.2.0 and v6.0.0 reads
+# (none for v4.3.0 or sup), so `model` is forced in with --model-override: every result is a
+# Basecall-model mismatch. smallvar writes only GT and GQ, so the AF filter can't be applied to
+# its diploid calls. It runs on every Read set in `run`. Empty arms = off. It isn't an Arm and
+# adds no rows to results.tsv or benchmarks.tsv: its tables are
+# <results_dir>/tables/smallvar_pilot{,_runtime}.tsv. `snakemake ... smallvar_pilot` runs just this.
+smallvar_pilot:
+  arms: []          # e.g. [D]: Dorado Arms whose alignment and Dorado binary are used
+  model: dna_r10.4.1_e8.2_400bps_hac@v6.0.0_smallvar@v1.0   # fetched into dorado.models_dir
+  compare_arms: [C, D]  # the table puts these Arms' own scores beside smallvar's
+  af_filter:        # and the AF filter's (#20) for this Clair3 Arm at this threshold
+    arm: C
+    threshold: 0.65
+    work_dir:       # the AF filter run's work_dir to read its scores from. Empty = this run's.
+  # A finished run's work_dir to read the Read sets' BAMs, Mutated references, Truth sets and
+  # the compared Arms' scores from, so they aren't re-made. Empty = this run's work_dir.
+  input_work_dir:
+
 # --- Method -------------------------------------------------------------------------
 read_models:  # Read model -> basecall model, written into the @RG DS for Dorado (ADR-0004)
   hac: dna_r10.4.1_e8.2_400bps_hac@v4.3.0

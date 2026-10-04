@@ -51,6 +51,9 @@ set-resources:
     constraint: epyc5
   call_clair3: *timed_cpu
   call_dorado_cpu: *timed_cpu
+  # The smallvar pilot (#29) is timed on the same H100 SXM as call_dorado. It used 1.7-8.2 GB
+  # RSS and 5-21 s per Read set.
+  call_dorado_smallvar: *dorado_gpu
 
 # The AF filter's small per-threshold jobs (#20) take seconds each, so each threshold's AF
 # filter, Filter chain and both vcfdist runs go to Slurm as one job.
@@ -58,3 +61,7 @@ groups:
   af_filter: clair3_af_score
   filter_calls_af: clair3_af_score
   vcfdist_af: clair3_af_score
+  # The smallvar pilot's Filter chain and both vcfdist runs (#29) take seconds each, so each
+  # Read set's go to Slurm as one job.
+  filter_calls_smallvar: smallvar_score
+  vcfdist_smallvar: smallvar_score
