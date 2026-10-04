@@ -44,6 +44,11 @@ def read_tsv(path):
         return list(csv.DictReader(fh, delimiter="\t"))
 
 
+def read_tsv_csv(path):
+    with open(path, newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
 failures = []
 
 
@@ -339,6 +344,69 @@ d_rows = [r for r in results if r["arm"] == "D"]
 check(
     len(d_rows) == len(READ_SETS) * 3 * 2,
     f"results.tsv has no extra Arm D rows from the CPU re-run ({len(d_rows)} rows)",
+)
+
+# 9. The figures and tables (#14) exist, are non-empty, and the tables have the rows Table 1 and
+# Table S1 promise. (What the figures look like is checked by eye on the full run.)
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+for name in ("fig1_best_f1_depth", "fig2_pr_curves", "fig3_per_sample_best_f1"):
+    png = outdir / f"results/figures/{name}.png"
+    svg = outdir / f"results/figures/{name}.svg"
+    check(png.exists() and png.read_bytes()[:8] == PNG_MAGIC, f"{name}.png is a PNG")
+    check(svg.exists() and b"<svg" in svg.read_bytes()[:2000], f"{name}.svg is an SVG")
+
+table1 = read_tsv_csv(outdir / "results/tables/table1_runtime_memory.csv")
+tools = {(r["Tool"], r["Version"], r["Device"], r["Timing only"]) for r in table1}
+for want_tool in (
+    ("minimap2", "2.26", "CPU", "no"),
+    ("minimap2", "2.31", "CPU", "no"),
+    ("Clair3", "1.0.5", "CPU", "no"),
+    ("Clair3", "2.0.3", "CPU", "no"),
+    ("dorado polish", "2.1.2", "CPU", "no"),  # the fixture's main Dorado run is on CPU, not GPU
+    ("dorado polish", "2.1.2", "CPU", "yes"),
+):
+    check(want_tool in tools, f"Table 1 has {want_tool}")
+check(
+    {r["Depth (x)"] for r in table1 if r["Timing only"] == "yes"} == {str(args.cpu_depth)},
+    f"Table 1's Dorado CPU row is only at {args.cpu_depth}x",
+)
+# The shared alignment is one row for Arms B, C and D, not one each.
+shared = [r for r in table1 if r["Step"] == "Alignment" and r["Version"] == "2.31"]
+check(
+    len(shared) == len(DEPTHS) and all(r["Arms"].count(",") == 2 for r in shared),
+    "Table 1 counts the alignment shared by Arms B, C and D once",
+)
+check(
+    all(float(r["Wall time median (s)"]) > 0 and float(r["Peak RSS median (MB)"]) > 0 for r in table1),
+    "Table 1's times and memory are positive",
+)
+
+table_s1 = read_tsv_csv(outdir / "results/tables/table_s1_per_sample.csv")
+check(
+    len(table_s1) == len(READ_SETS) * len(ARMS),
+    f"Table S1 has a row per Read set x Arm ({len(table_s1)} rows)",
+)
+check(
+    all(r["Actual depth by contig (x)"].startswith("chromosome ") for r in table_s1),
+    "Table S1 gives the actual depth of every contig",
+)
+check(
+    {r["Arm"] for r in table_s1} == {"A (paper)", "B (lr:hq post)", "C (current Clair3)", "D (Dorado)"},
+    "Table S1 labels the Arms as in CONTEXT.md",
+)
+by_row = {(r["Read model"], r["Depth (x)"], r["Arm"][0]): r for r in table_s1}
+res_row = {
+    (r["read_model"], r["depth"], r["arm"], r["var_type"], r["scoring_mode"]): r for r in results
+}
+check(
+    all(
+        by_row[(rm, str(d), a)]["INDEL Best F1"] == res_row[(rm, str(d), a, "INDEL", "sweep_best")]["f1"]
+        and by_row[(rm, str(d), a)]["INDEL Default-PASS F1"]
+        == res_row[(rm, str(d), a, "INDEL", "default_pass")]["f1"]
+        for rm, d in READ_SETS
+        for a in ARMS
+    ),
+    "Table S1 keeps Best F1 and the Default-PASS score apart, as in results.tsv",
 )
 
 if failures:

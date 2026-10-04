@@ -128,6 +128,17 @@ benchmark_hardware:
   gpu: "NVIDIA H100 80GB HBM3"
   cpu: "AMD EPYC 9745"
 
+# The figures and tables for the post (#14), made from the aggregated tables alone.
+figures:
+  arm_labels:           # the Arm names in CONTEXT.md, written "Arm <letter> (<label>)"
+    A: paper
+    B: lr:hq post
+    C: current Clair3
+    D: Dorado
+  default_pass_arms: [C, D]   # Figure 1's dashed Default-PASS lines
+  pr_depths: [10, 50]         # Figure 2's PR curves; a Depth missing from the run is skipped
+  dpi: 300
+
 max_indel: 50  # Filter chain: drop indels longer than this
 
 vcfdist:  # ADR-0003

@@ -15,6 +15,8 @@
 # $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
 # models for Arm C and checking their SHA256s (needs internet). OUTDIR defaults to a new
 # temporary directory.
+# It also renders the figures and tables (#14) from the fixture's aggregated tables, and
+# check_seam1.py confirms they exist.
 # Conda envs and container images are cached in .snakemake/ and shared with real runs.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
