@@ -81,5 +81,13 @@ _Avoid_: CPU run (unqualified; Clair3 only runs on CPU)
 An extra analysis (#20), not an Arm: Clair3 run without `--haploid_precise`, each het call then made homozygous ALT when its allele frequency (`FORMAT/AF`) is at least the AF threshold and homozygous REF otherwise, before the Filter chain. Scored apart from `results.tsv`.
 _Avoid_: AF Arm, haploid filter
 
+**smallvar pilot**:
+An extra analysis (#29), not an Arm: `dorado smallvar` run on Arm D's alignment with the whole genome hemizygous (haploid calls), scored with the Filter chain apart from `results.tsv`. Every result is a Basecall-model mismatch.
+_Avoid_: smallvar Arm, Arm E
+
+**Basecall-model mismatch**:
+A calling model trained for reads from a different basecall model than the Read set's. The smallvar pilot forces Dorado's hac v6.0.0 smallvar model onto v4.3.0 reads (a version mismatch), and onto sup reads a double one (tier and version).
+_Avoid_: wrong model, model mismatch (unqualified)
+
 **F1 Q-score**:
 F1 on a Phred scale, −10·log10(1 − F1). A perfect F1 is capped at Q60, the resolution of vcfdist's 6-decimal F1.
