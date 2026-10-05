@@ -5,7 +5,8 @@ has a solid line for its Best F1 (the `sweep_best` scoring mode) and Arms C and 
 config's figures.default_pass_arms) also a dashed line for the Default-PASS score. Lines are
 medians over the Samples in the run, so Arm D's Default-PASS score sits apart from its Best
 F1 and can be compared with Clair3's. With the AF filter analysis enabled (#28) there is a
-further series, Clair3 with the AF filter, which gets both lines like Arms C and D.
+further series, Clair3 with the AF filter, which gets both lines like Arms C and D. F1 is on a
+logit scale, which spreads out the differences close to 1.
 """
 
 import sys
@@ -19,8 +20,8 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.ticker import FixedLocator, NullLocator  # noqa: E402
 
 from figures_common import (  # noqa: E402
-    AF_SERIES, COLOURS, DEPTH_NOTE, LINEWIDTHS, MARKERS, READ_MODELS, VAR_TYPES, ZORDERS,
-    af_note, arm_label, arm_order, present, read_results, save,
+    AF_SERIES, COLOURS, DEPTH_NOTE, LINEWIDTHS, LOGIT_NOTE, MARKERS, READ_MODELS, VAR_TYPES,
+    ZORDERS, af_note, arm_label, arm_order, logit_axis, logit_clip, present, read_results, save,
 )  # fmt: skip
 
 cfg = snakemake.params
@@ -49,16 +50,20 @@ for i, var_type in enumerate(VAR_TYPES):
         for arm in arms:
             best = panel[(panel["scoring_mode"] == "sweep_best") & (panel["arm"] == arm)]
             ax.plot(
-                best["depth"], best["f1"], color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
+                best["depth"], logit_clip(best["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
                 lw=LINEWIDTHS[arm], alpha=0.9 if arm != "A" else 0.45, zorder=ZORDERS[arm],
                 solid_capstyle="round",
             )  # fmt: skip
             if arm in cfg.default_pass_arms or arm == AF_SERIES:
                 dp = panel[(panel["scoring_mode"] == "default_pass") & (panel["arm"] == arm)]
                 ax.plot(
-                    dp["depth"], dp["f1"], color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
+                    dp["depth"], logit_clip(dp["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
                     mfc="white", lw=1.6, ls=(0, (4, 2)), zorder=ZORDERS[arm] + 5,
                 )  # fmt: skip
+        # One logit y range per row (sharey), from the lines drawn in both Read models.
+        row = medians[(medians["var_type"] == var_type) & medians["arm"].isin(arms)]
+        drawn = (row["scoring_mode"] == "sweep_best") | row["arm"].isin([*cfg.default_pass_arms, AF_SERIES])
+        logit_axis(ax, "y", row.loc[drawn, "f1"])
         ax.set_xscale("log")
         ax.xaxis.set_major_locator(FixedLocator(depths))
         ax.xaxis.set_minor_locator(NullLocator())
@@ -83,7 +88,7 @@ handles += [
 ]  # fmt: skip
 fig.legend(handles=handles, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.06 if af else 0.045))
 fig.suptitle("Best F1 against Depth", y=0.98, fontsize=11)
-note = f"Lines are medians over {n_samples} Samples. {DEPTH_NOTE}"
+note = f"Lines are medians over {n_samples} Samples. {LOGIT_NOTE} {DEPTH_NOTE}"
 if af:
     note += "\n" + af_note(af)
 fig.text(0.5, 0.012, note, ha="center", va="bottom", fontsize=7.5, color="#444444", wrap=True)

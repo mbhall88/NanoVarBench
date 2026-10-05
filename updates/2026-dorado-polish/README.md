@@ -105,8 +105,9 @@ code: the rendered outputs go in once, with the final aggregated tables (#15).
   and sup columns. Solid lines are each Arm's Best F1 (`sweep_best`), medians over the
   Samples. Dashed lines are the Default-PASS score of Arms C and D
   (`figures.default_pass_arms`), so Arm D's default is shown apart from its Best F1 and beside
-  Clair3's. The figure's note says Depth is a per-position `rasusa aln` cap, not a random
-  genome-wide subsample.
+  Clair3's. F1 is on a logit scale, which spreads out the differences close to 1 that a
+  linear axis squashes together. The figure's note says Depth is a per-position `rasusa aln`
+  cap, not a random genome-wide subsample.
 - **Figure 2** (`fig2_pr_curves`): precision-recall curves from the QUAL sweep at the Depths in
   `figures.pr_depths` (10 and 50x; a Depth missing from the run is skipped), per variant type
   and Read model, one curve per Arm. The Samples are pooled: truth and query counts are summed
@@ -114,7 +115,9 @@ code: the rendered outputs go in once, with the final aggregated tables (#15).
   Default-PASS score is a marker on each curve, pooled the same way. Each panel is zoomed to
   its own range.
 - **Figure 3** (`fig3_per_sample_best_f1`): every Sample's Best F1 at every Depth, a dot per
-  Arm, with the dnd Samples shaded and their names in red (dorado#1599).
+  Arm, with the dnd Samples shaded and their names in red (dorado#1599). F1 is on a logit
+  scale. A perfect score has no logit, so perfect scores are drawn in a column of their own
+  after a dotted line, just past the panel's best imperfect score: the axis is broken there.
 - **The AF filter series** (#28): with the AF filter analysis enabled (see below), Figures 1-3
   and Table S1 gain a series for Clair3 with the AF filter, labelled "Arm C + AF filter (0.65),
   extra analysis" since it is not one of the Arms. The Arm and threshold are

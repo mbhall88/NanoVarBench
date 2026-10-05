@@ -14,7 +14,9 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+from matplotlib.ticker import FixedFormatter, FixedLocator, NullLocator  # noqa: E402
 
 VAR_TYPES = ["SNP", "INDEL"]  # ALL is in results.tsv but not in the figures
 READ_MODELS = ["hac", "sup"]
@@ -33,6 +35,16 @@ LINEWIDTHS = {"A": 5.0, "B": 3.2, "C": 1.8, "D": 1.8, AF_SERIES: 1.8}
 ZORDERS = {"A": 2, "B": 3, "C": 4, "D": 5, AF_SERIES: 6}
 DND_COLOUR = "#b2182b"
 DND_URL = "https://github.com/nanoporetech/dorado/issues/1599"
+
+# F1, precision and recall go on a logit axis, which spreads out the differences close to 1
+# that a linear axis squashes together. A perfect score has no logit, so it is drawn at
+# 1 - LOGIT_CLIP: Q60, the same cap as f1_qscore's.
+LOGIT_CLIP = 1e-6
+LOGIT_TICKS = [
+    0.5, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.998, 0.999, 0.9995, 0.9998, 0.9999, 0.99999,
+    1 - LOGIT_CLIP,
+]  # fmt: skip
+LOGIT_NOTE = "F1 is on a logit scale."
 
 DEPTH_NOTE = (
     "Depth is a per-position cap applied with rasusa aln, not a random genome-wide subsample, "
@@ -119,3 +131,51 @@ def species_short(species):
     """Escherichia coli -> E. coli."""
     genus, *rest = species.split()
     return f"{genus[0]}. {' '.join(rest)}"
+
+
+def logit_clip(values):
+    """Scores clipped into the logit scale's domain, so a perfect score can be drawn."""
+    return np.clip(np.asarray(values, dtype=float), LOGIT_CLIP, 1 - LOGIT_CLIP)
+
+
+def logit_axis(ax, which, values, max_ticks=6, perfect_column=False):
+    """Put the "x" or "y" axis on a logit scale, limited to the values with a little padding,
+    with ticks from LOGIT_TICKS labelled as decimals. Returns the function that maps scores to
+    where they are drawn.
+
+    A perfect score is drawn at 1 - LOGIT_CLIP and labelled 1. With `perfect_column`, it is
+    instead drawn in a column of its own just past the panel's best imperfect score, after a
+    dotted line, so one perfect score doesn't squash the rest of the panel: the axis is broken
+    there, and the distance to the column means nothing."""
+    v = np.asarray(values, dtype=float)
+    logit = lambda x: np.log(x / (1 - x))  # noqa: E731
+    expit = lambda z: 1 / (1 + np.exp(-z))  # noqa: E731
+    if perfect_column and (v >= 1).any():
+        imperfect = logit(logit_clip(v[v < 1])) if (v < 1).any() else logit(np.array([0.9999]))
+        lo, top = imperfect.min(), imperfect.max()
+        gap = max(0.15 * (top - lo), 0.4)
+        perfect = expit(top + gap)
+        ax.axvline(expit(top + gap / 2), color="#999999", lw=0.7, ls=":", zorder=1) if which == "x" else ax.axhline(
+            expit(top + gap / 2), color="#999999", lw=0.7, ls=":", zorder=1
+        )  # fmt: skip
+        z = np.append(imperfect, top + gap)
+        tick_max = expit(top + gap / 3)
+    else:
+        perfect = 1 - LOGIT_CLIP
+        z = logit(logit_clip(v))
+        tick_max = 1
+    pad = 0.06 * (z.max() - z.min()) + 0.1
+    lim = (expit(z.min() - pad), expit(z.max() + pad))
+    getattr(ax, f"set_{which}scale")("logit")
+    getattr(ax, f"set_{which}lim")(lim)
+    ticks = [t for t in LOGIT_TICKS[:-1] if lim[0] <= t <= min(lim[1], tick_max)]
+    while len(ticks) > max_ticks:  # thin from the bottom, keeping the ticks closest to 1
+        ticks = ticks[::-2][::-1]
+    labels = [f"{t:g}" for t in ticks]
+    if lim[0] <= perfect <= lim[1]:
+        ticks, labels = ticks + [perfect], labels + ["1"]
+    axis = ax.xaxis if which == "x" else ax.yaxis
+    axis.set_major_locator(FixedLocator(ticks))
+    axis.set_major_formatter(FixedFormatter(labels))
+    axis.set_minor_locator(NullLocator())
+    return lambda x: np.where(np.asarray(x, dtype=float) >= 1, perfect, logit_clip(x))
