@@ -23,8 +23,8 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 from figures_common import (  # noqa: E402
-    AF_SERIES, COLOURS, DEPTH_NOTE, MARKERS, READ_MODELS, VAR_TYPES, ZORDERS, af_note, arm_label,
-    arm_order, present, read_results, save,
+    AF_SERIES, COLOURS, MARKERS, READ_MODELS, VAR_TYPES, ZORDERS, arm_label, arm_order, present,
+    read_results, save,
 )  # fmt: skip
 
 cfg = snakemake.params
@@ -130,13 +130,8 @@ handles.append(
 )  # fmt: skip
 fig.legend(
     handles=handles, loc="lower center", ncol=3 if af else len(handles),
-    bbox_to_anchor=(0.5, -0.045 if af else -0.01),
+    bbox_to_anchor=(0.5, 0),
 )
-fig.suptitle("Precision-recall curves (QUAL sweep)", y=0.99, fontsize=11)
-note = f"Curves pool all {results['sample'].nunique()} Samples. Each panel is zoomed to its own range. {DEPTH_NOTE}"
-if af:
-    note += "\n" + af_note(af)
-fig.text(0.5, -0.045 if not af else -0.08, note, ha="center", va="top", fontsize=7.5, color="#444444")
-fig.tight_layout(rect=(0, 0.05, 1, 0.97))
+fig.tight_layout(rect=(0, 0.1 if af else 0.06, 1, 1))
 save(fig, [snakemake.output.png, snakemake.output.svg], cfg.dpi)
 print(f"arms={arms} depths={depths} read_models={read_models}", file=sys.stderr)

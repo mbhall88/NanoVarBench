@@ -3,7 +3,8 @@
 A dot plot with a row per Sample and a dot per Arm (Best F1, the `sweep_best` scoring mode).
 Columns are Depths and rows are variant type x Read model. The dnd Samples, where Dorado's
 bacterial model is reported to make systematic errors (dorado#1599), are shaded and their
-names are in red. Each panel has its own x limits, because the Depths differ so much in F1.
+names are in red. Each panel has its own x limits, because the Depths differ so much in F1,
+and F1 is on a logit scale.
 With the AF filter analysis enabled (#28) there is a further dot per Sample for Clair3 with the
 AF filter.
 """
@@ -17,11 +18,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
-from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 from figures_common import (  # noqa: E402
-    COLOURS, DND_COLOUR, DND_URL, MARKERS, READ_MODELS, VAR_TYPES, af_note, arm_label,
-    arm_order, present, read_results, save, species_short,
+    COLOURS, DND_COLOUR, MARKERS, READ_MODELS, VAR_TYPES, arm_label, arm_order, logit_axis,
+    present, read_results, save, species_short,
 )  # fmt: skip
 
 cfg = snakemake.params
@@ -40,12 +40,12 @@ samples = (
     .reset_index(drop=True)
 )
 ypos = {sample: i for i, sample in enumerate(samples["sample"])}
-step = 0.2 if len(arms) <= 4 else 0.16  # keep a Sample's dots inside its row
+step = 0.2 if len(arms) <= 4 else 0.19  # spread a Sample's dots across its row, apart
 dodge = {arm: (k - (len(arms) - 1) / 2) * step for k, arm in enumerate(arms)}
 
 rows = [(vt, rm) for rm in read_models for vt in VAR_TYPES]
 fig, axes = plt.subplots(
-    len(rows), len(depths), figsize=(3.0 * len(depths) + 1.6, 3.6 * len(rows)),
+    len(rows), len(depths), figsize=(3.0 * len(depths) + 1.6, 4.4 * len(rows)),
     sharey=True, squeeze=False,
 )  # fmt: skip
 for i, (var_type, read_model) in enumerate(rows):
@@ -56,10 +56,11 @@ for i, (var_type, read_model) in enumerate(rows):
         ]  # fmt: skip
         for _, s in samples[samples["dnd_sample"]].iterrows():
             ax.axhspan(ypos[s["sample"]] - 0.5, ypos[s["sample"]] + 0.5, color=DND_COLOUR, alpha=0.09, lw=0)
+        drawn_at = logit_axis(ax, "x", panel["f1"], max_ticks=4, perfect_column=True)
         for arm in arms:
             a = panel[panel["arm"] == arm]
             ax.scatter(
-                a["f1"], [ypos[s] + dodge[arm] for s in a["sample"]], s=16, marker=MARKERS[arm],
+                drawn_at(a["f1"]), [ypos[s] + dodge[arm] for s in a["sample"]], s=14, marker=MARKERS[arm],
                 color=COLOURS[arm], edgecolor="white", linewidth=0.3, zorder=3,
             )  # fmt: skip
         ax.set_ylim(len(samples) - 0.5, -0.5)
@@ -67,7 +68,6 @@ for i, (var_type, read_model) in enumerate(rows):
         ax.set_xlabel("Best F1")
         ax.grid(axis="y", visible=False)
         ax.tick_params(axis="x", labelsize=8)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
         if j == 0:
             ax.set_yticks(range(len(samples)))
             ax.set_yticklabels(
@@ -85,13 +85,8 @@ handles = [
 handles.append(Patch(color=DND_COLOUR, alpha=0.25, label=f"dnd Sample (dorado#1599)"))
 fig.legend(
     handles=handles, loc="lower center", ncol=3 if af else len(handles),
-    bbox_to_anchor=(0.5, -0.005 if not af else -0.012),
+    bbox_to_anchor=(0.5, 0),
 )
-fig.suptitle("Best F1 per Sample", y=0.995, fontsize=11)
-note = f"One row per Sample; dnd Samples are shaded, see {DND_URL}. Each panel has its own x-axis."
-if af:
-    note += "\n" + af_note(af)
-fig.text(0.5, -0.012 if not af else -0.03, note, ha="center", va="top", fontsize=7.5, color="#444444")
-fig.tight_layout(rect=(0, 0.02, 1, 0.985))
+fig.tight_layout(rect=(0, 0.035 if af else 0.025, 1, 1))
 save(fig, [snakemake.output.png, snakemake.output.svg], cfg.dpi)
 print(f"arms={arms} depths={depths} read_models={read_models} samples={len(samples)}", file=sys.stderr)

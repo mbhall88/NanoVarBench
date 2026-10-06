@@ -6,8 +6,8 @@ threshold, with the QUAL threshold it was reached at) and the Default-PASS score
 precision and recall. A CSV with readable headers, for the site's interactive csv-table.
 Numbers are passed through as results.tsv wrote them. With the AF filter analysis enabled
 (#28), each Read set has a further row for the AF filter variant of the series' Arm (Clair3
-run diploid, each het resolved by FORMAT/AF at the threshold), labelled as an extra analysis
-and not an Arm, after the Arms' rows; their rows don't change.
+run diploid, each het resolved by FORMAT/AF at the threshold), labelled "C + AF filter (0.65)",
+after the Arms' rows; their rows don't change.
 """
 
 import sys
@@ -63,7 +63,7 @@ for name, (part, column) in columns.items():
     table[name] = part[column].reindex(pd.MultiIndex.from_frame(table[KEYS + ["arm"]])).to_numpy()
 
 table["arm_label"] = table["arm"].map(
-    lambda a: f"{af['arm']} + AF filter ({af['threshold']}), extra analysis, not an Arm"
+    lambda a: f"{af['arm']} + AF filter ({af['threshold']})"
     if a == AF_SERIES
     else f"{a} ({labels[a]})"
 )

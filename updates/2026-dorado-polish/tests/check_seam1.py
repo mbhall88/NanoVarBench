@@ -349,7 +349,7 @@ check(
 # 9. The figures and tables (#14) exist, are non-empty, and the tables have the rows Table 1 and
 # Table S1 promise. (What the figures look like is checked by eye on the full run.)
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
-for name in ("fig1_best_f1_depth", "fig2_pr_curves", "fig3_per_sample_best_f1"):
+for name in ("fig1_best_f1_depth", "fig2_pr_curves", "fig3_per_sample_best_f1", "fig4_runtime_memory"):
     png = outdir / f"results/figures/{name}.png"
     svg = outdir / f"results/figures/{name}.svg"
     check(png.exists() and png.read_bytes()[:8] == PNG_MAGIC, f"{name}.png is a PNG")
