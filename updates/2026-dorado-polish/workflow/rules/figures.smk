@@ -14,6 +14,7 @@ FIGURE_NAMES = {
     "fig1": "fig1_best_f1_depth",
     "fig2": "fig2_pr_curves",
     "fig3": "fig3_per_sample_best_f1",
+    "fig4": "fig4_runtime_memory",
 }
 TABLE1 = TABLES / "table1_runtime_memory.csv"
 TABLE_S1 = TABLES / "table_s1_per_sample.csv"
@@ -107,6 +108,28 @@ rule fig3_per_sample_best_f1:
         "../scripts/fig3_per_sample.py"
 
 
+rule fig4_runtime_memory:
+    """Figure 4: wall time and peak memory of each Arm's variant calling against Depth, from
+    benchmarks.tsv, with Dorado's CPU re-run beside its GPU run."""
+    input:
+        benchmarks=rules.benchmarks.output.tsv,
+    output:
+        **figure_files("fig4"),
+    log:
+        LOGS / "fig4_runtime_memory.log",
+    threads: 1
+    resources:
+        mem_mb=2000,
+        runtime=10,
+    conda:
+        ENVS / "plot.yaml"
+    params:
+        arm_labels=FIGURE_CONFIG["arm_labels"],
+        dpi=FIGURE_CONFIG["dpi"],
+    script:
+        "../scripts/fig4_runtime_memory.py"
+
+
 rule table1_runtime_memory:
     """Table 1: wall time and peak memory of each alignment and calling step, from benchmarks.tsv."""
     input:
@@ -155,5 +178,6 @@ localrules:
     fig1_best_f1_depth,
     fig2_pr_curves,
     fig3_per_sample_best_f1,
+    fig4_runtime_memory,
     table1_runtime_memory,
     table_s1_per_sample,

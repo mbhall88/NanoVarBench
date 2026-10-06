@@ -69,5 +69,12 @@ where Dorado's bacterial model is reported to make systematic errors with hac v6
 ([dorado#1599](https://github.com/nanoporetech/dorado/issues/1599)). Arm C + AF filter (0.65)
 is as in Figure 1.
 
+**Figure 4** (`figures/fig4_runtime_memory`). Wall time (left) and peak RAM (right) of variant
+calling against Depth, both on log scales. Points are medians over the 28 Read sets (14
+Samples, hac and sup) and bars show the range. Clair3 (Arms A-C) ran on 8 threads of an AMD
+EPYC 9745 and `dorado polish` (Arm D) on one NVIDIA H100 80GB HBM3 with 8 threads; the open
+marker is Dorado's timing-only re-run on 8 CPU threads at 50x. Alignment (under 30 s with minimap2)
+isn't shown; it is in Table 1. Peak RAM is host memory: Dorado's GPU memory isn't measured.
+
 To re-render them, and Tables 1 and S1, put the (gunzipped) tables in a `results_dir`'s
 `tables/` and run only the figure and table rules, as in the update's README.

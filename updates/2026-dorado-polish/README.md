@@ -120,6 +120,11 @@ its caption, in [final/README.md](final/README.md) and the post.
   Arm, with the dnd Samples shaded and their names in red (dorado#1599). F1 is on a logit
   scale. A perfect score has no logit, so perfect scores are drawn in a column of their own
   after a dotted line, just past the panel's best imperfect score: the axis is broken there.
+- **Figure 4** (`fig4_runtime_memory`): wall time and peak memory of each Arm's variant calling
+  against Depth, from `benchmarks.tsv`: medians over the Samples and Read models, with bars for
+  the range, on log axes. Dorado's timing-only CPU re-run is an open marker beside its GPU run.
+  Alignment isn't drawn (Table 1 has it), and peak memory is host RSS: GPU memory isn't
+  measured.
 - **The AF filter series** (#28): with the AF filter analysis enabled (see below), Figures 1-3
   and Table S1 gain a series for Clair3 with the AF filter, labelled "Arm C + AF filter (0.65),
   extra analysis" since it is not one of the Arms. The Arm and threshold are
