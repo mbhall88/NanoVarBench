@@ -71,9 +71,9 @@ plt.rcParams.update(
 
 def arm_label(arm, labels, af=None):
     """The Arm's name in CONTEXT.md, e.g. "Arm D (Dorado)". The AF filter series is "Arm C + AF
-    filter (0.65), extra analysis": the threshold is there, and it says it isn't an Arm."""
+    filter (0.65)", with its threshold; captions say it isn't one of the Arms."""
     if arm == AF_SERIES:
-        return f"Arm {af['arm']} + AF filter ({af['threshold']}), extra analysis"
+        return f"Arm {af['arm']} + AF filter ({af['threshold']})"
     return f"Arm {arm} ({labels[arm]})"
 
 

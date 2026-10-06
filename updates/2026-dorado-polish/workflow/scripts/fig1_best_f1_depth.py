@@ -6,7 +6,8 @@ config's figures.default_pass_arms) also a dashed line for the Default-PASS scor
 medians over the Samples in the run, so Arm D's Default-PASS score sits apart from its Best
 F1 and can be compared with Clair3's. With the AF filter analysis enabled (#28) there is a
 further series, Clair3 with the AF filter, which gets both lines like Arms C and D. F1 is on a
-logit scale, which spreads out the differences close to 1.
+logit scale, which spreads out the differences close to 1. Each series is nudged sideways
+(a constant factor on the log Depth axis) so points with near-equal F1 don't hide each other.
 """
 
 import sys
@@ -31,6 +32,9 @@ read_models = present(results["read_model"], READ_MODELS)
 arms = arm_order(results["arm"].unique())
 depths = sorted(results["depth"].unique())
 n_samples = results["sample"].nunique()
+# Sideways nudge per series, centred on the true Depth: a factor, as the Depth axis is log.
+NUDGE = 1.06
+nudge = {arm: NUDGE ** (k - (len(arms) - 1) / 2) for k, arm in enumerate(arms)}
 
 # Median over Samples of each Arm's Best F1 / Default-PASS F1 at each Depth.
 medians = (
@@ -50,14 +54,14 @@ for i, var_type in enumerate(VAR_TYPES):
         for arm in arms:
             best = panel[(panel["scoring_mode"] == "sweep_best") & (panel["arm"] == arm)]
             ax.plot(
-                best["depth"], logit_clip(best["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
+                best["depth"] * nudge[arm], logit_clip(best["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
                 lw=LINEWIDTHS[arm], alpha=0.9 if arm != "A" else 0.45, zorder=ZORDERS[arm],
                 solid_capstyle="round",
             )  # fmt: skip
             if arm in cfg.default_pass_arms or arm == AF_SERIES:
                 dp = panel[(panel["scoring_mode"] == "default_pass") & (panel["arm"] == arm)]
                 ax.plot(
-                    dp["depth"], logit_clip(dp["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
+                    dp["depth"] * nudge[arm], logit_clip(dp["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
                     mfc="white", lw=1.6, ls=DASHES, zorder=ZORDERS[arm] + 5,
                 )  # fmt: skip
         # One logit y range per row (sharey), from the lines drawn in both Read models.

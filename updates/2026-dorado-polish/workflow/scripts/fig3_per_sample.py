@@ -40,12 +40,12 @@ samples = (
     .reset_index(drop=True)
 )
 ypos = {sample: i for i, sample in enumerate(samples["sample"])}
-step = 0.2 if len(arms) <= 4 else 0.16  # keep a Sample's dots inside its row
+step = 0.2 if len(arms) <= 4 else 0.19  # spread a Sample's dots across its row, apart
 dodge = {arm: (k - (len(arms) - 1) / 2) * step for k, arm in enumerate(arms)}
 
 rows = [(vt, rm) for rm in read_models for vt in VAR_TYPES]
 fig, axes = plt.subplots(
-    len(rows), len(depths), figsize=(3.0 * len(depths) + 1.6, 3.6 * len(rows)),
+    len(rows), len(depths), figsize=(3.0 * len(depths) + 1.6, 4.4 * len(rows)),
     sharey=True, squeeze=False,
 )  # fmt: skip
 for i, (var_type, read_model) in enumerate(rows):
@@ -60,7 +60,7 @@ for i, (var_type, read_model) in enumerate(rows):
         for arm in arms:
             a = panel[panel["arm"] == arm]
             ax.scatter(
-                drawn_at(a["f1"]), [ypos[s] + dodge[arm] for s in a["sample"]], s=16, marker=MARKERS[arm],
+                drawn_at(a["f1"]), [ypos[s] + dodge[arm] for s in a["sample"]], s=14, marker=MARKERS[arm],
                 color=COLOURS[arm], edgecolor="white", linewidth=0.3, zorder=3,
             )  # fmt: skip
         ax.set_ylim(len(samples) - 0.5, -0.5)

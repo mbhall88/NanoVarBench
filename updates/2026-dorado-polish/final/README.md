@@ -48,11 +48,10 @@ PNG and SVG. The images carry no titles or notes; these are their captions.
 SNPs (top) and indels (bottom) with hac (left) and sup (right) reads. Solid lines are Best F1
 (the best QUAL threshold); dashed lines with open markers are the Default-PASS score (PASS
 records only), for Arms C and D and the AF filter. F1 is on a logit scale, which spreads out
-the differences close to 1. Depth is a per-position cap applied with `rasusa aln`, not a
-random genome-wide subsample, so low-Depth results are not directly comparable with the eLife
-paper's. Arm C + AF filter (0.65) is an extra analysis, not an Arm: Arm C's Clair3 run
-diploid, with each het call made the ALT when its FORMAT/AF is at least 0.65 and REF
-otherwise.
+the differences close to 1. Points are nudged sideways so they don't hide each other; each is
+at the Depth below it. AF is allele frequency (FORMAT/AF). Arm C + AF filter (0.65) is Arm C's
+Clair3 run diploid, with each het call made the ALT when its AF is ≥ 0.65 and REF otherwise;
+it isn't one of the Arms.
 
 **Figure 2** (`figures/fig2_pr_curves`). Precision-recall curves over QUAL thresholds at 10x
 and 50x, for SNPs (top) and indels (bottom). Each curve pools the 14 Samples, summing their

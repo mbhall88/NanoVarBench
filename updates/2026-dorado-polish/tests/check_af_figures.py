@@ -56,8 +56,8 @@ check(
 )
 label = af_rows[0]["Arm"] if af_rows else ""
 check(
-    f"AF filter ({THRESHOLD})" in label and "extra analysis" in label and label.startswith(args.arm),
-    f"the AF filter rows are labelled as an extra analysis with the threshold: {label!r}",
+    label == f"{args.arm} + AF filter ({THRESHOLD})",
+    f"the AF filter rows are labelled with the Arm and threshold: {label!r}",
 )
 table = read_csv(ON / "tables/clair3_af_filter.tsv", "\t")
 want = {
@@ -111,8 +111,8 @@ for name in FIGURES:
     on_svg = (ON / f"figures/{name}.svg").read_text()
     off_svg = (OFF / f"figures/{name}.svg").read_text()
     check(
-        f"{args.arm} + AF filter ({THRESHOLD}), extra analysis" in on_svg,
-        f"{name} names the AF filter series, as an extra analysis",
+        f"Arm {args.arm} + AF filter ({THRESHOLD})" in on_svg,
+        f"{name} names the AF filter series",
     )
     check("AF filter" not in off_svg, f"{name} with the analysis off doesn't mention it")
     check((OFF / f"figures/{name}.png").stat().st_size > 0, f"{name}.png is rendered with the analysis off")
