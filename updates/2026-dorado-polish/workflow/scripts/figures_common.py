@@ -1,5 +1,8 @@
 """Shared loading and styling for the figure and table scripts (#14).
 
+The figures carry no titles or notes: what they show, and their caveats, go in the captions
+next to them (final/README.md and the post).
+
 Imported by fig1_best_f1_depth.py, fig2_pr_curves.py, fig3_per_sample.py, table1_runtime.py
 and table_s1_per_sample.py, which all read the aggregated tables (results.tsv, pr_curves.tsv,
 depth.tsv, benchmarks.tsv) and nothing else.
@@ -34,7 +37,6 @@ MARKERS[AF_SERIES] = "P"
 LINEWIDTHS = {"A": 5.0, "B": 3.2, "C": 1.8, "D": 1.8, AF_SERIES: 1.8}
 ZORDERS = {"A": 2, "B": 3, "C": 4, "D": 5, AF_SERIES: 6}
 DND_COLOUR = "#b2182b"
-DND_URL = "https://github.com/nanoporetech/dorado/issues/1599"
 
 # F1, precision and recall go on a logit axis, which spreads out the differences close to 1
 # that a linear axis squashes together. A perfect score has no logit, so it is drawn at
@@ -44,12 +46,8 @@ LOGIT_TICKS = [
     0.5, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.998, 0.999, 0.9995, 0.9998, 0.9999, 0.99999,
     1 - LOGIT_CLIP,
 ]  # fmt: skip
-LOGIT_NOTE = "F1 is on a logit scale."
-
-DEPTH_NOTE = (
-    "Depth is a per-position cap applied with rasusa aln, not a random genome-wide subsample, "
-    "so low-Depth recall is not directly comparable with the eLife paper."
-)
+# The Default-PASS lines' dash, short enough to read as dashed in the legend too.
+DASHES = (0, (2.5, 1.5))
 
 plt.rcParams.update(
     {
@@ -77,14 +75,6 @@ def arm_label(arm, labels, af=None):
     if arm == AF_SERIES:
         return f"Arm {af['arm']} + AF filter ({af['threshold']}), extra analysis"
     return f"Arm {arm} ({labels[arm]})"
-
-
-def af_note(af):
-    """One sentence for a figure's note saying what the AF filter series is."""
-    return (
-        f"Arm {af['arm']} + AF filter ({af['threshold']}) is an extra analysis, not an Arm: "
-        f"Arm {af['arm']}'s Clair3 run diploid, each het call resolved by FORMAT/AF >= {af['threshold']}."
-    )
 
 
 def arm_order(arms):

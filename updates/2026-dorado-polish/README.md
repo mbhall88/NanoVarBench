@@ -101,13 +101,15 @@ from `figures.arm_labels` in the config). Figures are written as PNG and SVG to
 `results/figures/`, tables as CSV to `results/tables/`. Nothing here is committed with the
 code: the rendered outputs go in once, with the final aggregated tables (#15).
 
+The figures have no titles or notes in the image: what each shows, and its caveats, are in
+its caption, in [final/README.md](final/README.md) and the post.
+
 - **Figure 1** (`fig1_best_f1_depth`): Best F1 against Depth, with SNP and INDEL rows and hac
   and sup columns. Solid lines are each Arm's Best F1 (`sweep_best`), medians over the
   Samples. Dashed lines are the Default-PASS score of Arms C and D
   (`figures.default_pass_arms`), so Arm D's default is shown apart from its Best F1 and beside
   Clair3's. F1 is on a logit scale, which spreads out the differences close to 1 that a
-  linear axis squashes together. The figure's note says Depth is a per-position `rasusa aln`
-  cap, not a random genome-wide subsample.
+  linear axis squashes together.
 - **Figure 2** (`fig2_pr_curves`): precision-recall curves from the QUAL sweep at the Depths in
   `figures.pr_depths` (10 and 50x; a Depth missing from the run is skipped), per variant type
   and Read model, one curve per Arm. The Samples are pooled: truth and query counts are summed
@@ -125,8 +127,8 @@ code: the rendered outputs go in once, with the final aggregated tables (#15).
   `clair3_af_filter.thresholds`, and the series is drawn when `clair3_af_filter.arms` includes
   the Arm. Figure 1 gives it a solid Best F1 line and a dashed Default-PASS line like Arms C and
   D, Figure 2 its PR curve (from `tables/clair3_af_filter_pr_curves.tsv`) and Default-PASS
-  point, and Figure 3 a dot per Sample. It is bluish green with a plus marker, and each
-  figure's note says it is an extra analysis. In Table S1 it is one more row per Read set,
+  point, and Figure 3 a dot per Sample. It is bluish green with a plus marker, and its legend
+  label says it is an extra analysis. In Table S1 it is one more row per Read set,
   after the Arms' rows, with the Arm column "C + AF filter (0.65), extra analysis, not an Arm".
   The series is read from `tables/clair3_af_filter.tsv`, so the figure and table rules need
   that table (and the PR curves table) next to the main ones. With the analysis off, the

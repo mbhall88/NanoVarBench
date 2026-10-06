@@ -20,8 +20,8 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.ticker import FixedLocator, NullLocator  # noqa: E402
 
 from figures_common import (  # noqa: E402
-    AF_SERIES, COLOURS, DEPTH_NOTE, LINEWIDTHS, LOGIT_NOTE, MARKERS, READ_MODELS, VAR_TYPES,
-    ZORDERS, af_note, arm_label, arm_order, logit_axis, logit_clip, present, read_results, save,
+    AF_SERIES, COLOURS, DASHES, LINEWIDTHS, MARKERS, READ_MODELS, VAR_TYPES, ZORDERS, arm_label,
+    arm_order, logit_axis, logit_clip, present, read_results, save,
 )  # fmt: skip
 
 cfg = snakemake.params
@@ -58,7 +58,7 @@ for i, var_type in enumerate(VAR_TYPES):
                 dp = panel[(panel["scoring_mode"] == "default_pass") & (panel["arm"] == arm)]
                 ax.plot(
                     dp["depth"], logit_clip(dp["f1"]), color=COLOURS[arm], marker=MARKERS[arm], ms=4.5,
-                    mfc="white", lw=1.6, ls=(0, (4, 2)), zorder=ZORDERS[arm] + 5,
+                    mfc="white", lw=1.6, ls=DASHES, zorder=ZORDERS[arm] + 5,
                 )  # fmt: skip
         # One logit y range per row (sharey), from the lines drawn in both Read models.
         row = medians[(medians["var_type"] == var_type) & medians["arm"].isin(arms)]
@@ -82,16 +82,12 @@ handles = [
 handles += [
     Line2D([], [], color="black", lw=1.8, label="Best F1 (QUAL sweep)"),
     Line2D(
-        [], [], color="black", lw=1.6, ls=(0, (4, 2)), marker="o", mfc="white", ms=4.5,
+        [], [], color="black", lw=1.6, ls=DASHES, marker="o", mfc="white", ms=4.5,
         label="Default-PASS score (Arms " + " and ".join(cfg.default_pass_arms) + (", and the AF filter)" if af else ")"),
     ),
 ]  # fmt: skip
-fig.legend(handles=handles, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.06 if af else 0.045))
-fig.suptitle("Best F1 against Depth", y=0.98, fontsize=11)
-note = f"Lines are medians over {n_samples} Samples. {LOGIT_NOTE} {DEPTH_NOTE}"
-if af:
-    note += "\n" + af_note(af)
-fig.text(0.5, 0.012, note, ha="center", va="bottom", fontsize=7.5, color="#444444", wrap=True)
-fig.tight_layout(rect=(0, 0.14 if af else 0.11, 1, 0.97))
+# Long legend samples, so the Default-PASS line shows several dashes either side of its marker.
+fig.legend(handles=handles, loc="lower center", ncol=3, handlelength=4.5, bbox_to_anchor=(0.5, 0))
+fig.tight_layout(rect=(0, 0.12, 1, 1))
 save(fig, [snakemake.output.png, snakemake.output.svg], cfg.dpi)
 print(f"arms={arms} depths={depths} read_models={read_models} samples={n_samples}", file=sys.stderr)

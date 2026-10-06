@@ -20,8 +20,8 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 
 from figures_common import (  # noqa: E402
-    COLOURS, DND_COLOUR, DND_URL, LOGIT_NOTE, MARKERS, READ_MODELS, VAR_TYPES, af_note,
-    arm_label, arm_order, logit_axis, present, read_results, save, species_short,
+    COLOURS, DND_COLOUR, MARKERS, READ_MODELS, VAR_TYPES, arm_label, arm_order, logit_axis,
+    present, read_results, save, species_short,
 )  # fmt: skip
 
 cfg = snakemake.params
@@ -85,16 +85,8 @@ handles = [
 handles.append(Patch(color=DND_COLOUR, alpha=0.25, label=f"dnd Sample (dorado#1599)"))
 fig.legend(
     handles=handles, loc="lower center", ncol=3 if af else len(handles),
-    bbox_to_anchor=(0.5, -0.005 if not af else -0.012),
+    bbox_to_anchor=(0.5, 0),
 )
-fig.suptitle("Best F1 per Sample", y=0.995, fontsize=11)
-note = (
-    f"One row per Sample; dnd Samples are shaded, see {DND_URL}. Each panel has its own x-axis. "
-    f"{LOGIT_NOTE} Perfect scores (F1 = 1) are drawn in the column after the dotted line."
-)
-if af:
-    note += "\n" + af_note(af)
-fig.text(0.5, -0.012 if not af else -0.03, note, ha="center", va="top", fontsize=7.5, color="#444444")
-fig.tight_layout(rect=(0, 0.02, 1, 0.985))
+fig.tight_layout(rect=(0, 0.035 if af else 0.025, 1, 1))
 save(fig, [snakemake.output.png, snakemake.output.svg], cfg.dpi)
 print(f"arms={arms} depths={depths} read_models={read_models} samples={len(samples)}", file=sys.stderr)
