@@ -5,6 +5,10 @@ Clair3 on the NanoVarBench data. The paper's workflow at the repository root is 
 [PLAN.md](PLAN.md) has the plan, [CONTEXT.md](CONTEXT.md) the glossary, and
 [docs/adr/](docs/adr/) the decisions.
 
+The results are written up in [a blog post](https://mbhall88.github.io/post/dorado-polish-variant-calling/).
+The aggregated tables and figures are in [final/](final/), and the variant calls and vcfdist
+outputs are on Zenodo: [doi:10.5281/zenodo.23180742](https://doi.org/10.5281/zenodo.23180742).
+
 The workflow runs all four Arms end to end: A, B and C with Clair3 (#9) and D with Dorado
 (#8). For each Sample x Read model x Depth it:
 

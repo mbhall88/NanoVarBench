@@ -2,7 +2,8 @@
 
 The aggregated tables, figures and post tables from the full run, made by this workflow and
 committed once. Per-run outputs (VCFs, vcfdist summaries, BAMs, reads) aren't in git; the
-filtered VCFs and vcfdist summaries go to Zenodo (#17).
+filtered VCFs and vcfdist summaries are on Zenodo:
+[doi:10.5281/zenodo.23180742](https://doi.org/10.5281/zenodo.23180742).
 
 If you use these results, please cite the NanoVarBench paper:
 Hall MB et al. (2024) Benchmarking reveals superiority of deep learning variant callers on

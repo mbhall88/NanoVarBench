@@ -6,9 +6,25 @@ This repository holds the code for [our paper][doi] which performs comprehensive
 
 You can find the results in that paper. Future updates after publication based on new tools, versions, experiments etc. will be reported and shown here.
 
+- [Updates](#updates)
 - [Citation](#citation)
 - [Data](#data)
 - [Usage](#usage)
+
+## Updates
+
+### October 2026: `dorado polish` vs Clair3
+
+We compared ONT's `dorado polish --bacteria --vcf` (2.1.2) with Clair3 on the paper's 14
+samples, at 5, 10, 25 and 50x with hac and sup reads. Clair3, run diploid with an allele
+frequency filter in place of `--haploid_precise`, gave the best SNP results at every depth,
+and Clair3 is still ahead on indels.
+
+- Blog post: [Comparing Dorado polish to Clair3 for bacterial variant calling][dorado-post]
+- Workflow, tables and figures: [`updates/2026-dorado-polish`](./updates/2026-dorado-polish)
+- Variant calls and vcfdist outputs: [Zenodo][dorado-zenodo]
+
+If you use these results, please cite [our paper](#citation).
 
 ## Citation
 
@@ -56,3 +72,5 @@ A script for submitting the master Snakemake job on a Slurm cluster can be found
 
 [doi]: https://doi.org/10.7554/eLife.98300 
 [truth]: https://zenodo.org/doi/10.5281/zenodo.10867170
+[dorado-post]: https://mbhall88.github.io/post/dorado-polish-variant-calling/
+[dorado-zenodo]: https://doi.org/10.5281/zenodo.23180742
