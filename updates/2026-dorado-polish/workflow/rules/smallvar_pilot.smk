@@ -75,40 +75,6 @@ SV_OUT = RESULTS / "smallvar_pilot/calls/{sample}/{read_model}/{depth}x"
 BENCH_SMALLVAR = RESULTS / "benchmarks/call_dorado_smallvar/{sample}.{read_model}.{depth}x.{arm}.tsv"
 
 
-rule download_smallvar_model:
-    """Fetch the smallvar model into models_dir. `dorado download` skips a model whose
-    directory exists, even empty, and Snakemake makes the output's directory before the job
-    runs, so it downloads to a temporary directory and moves the files in."""
-    output:
-        config=DORADO_MODELS_DIR / f"{SV_MODEL}/config.toml",
-        weights=DORADO_MODELS_DIR / f"{SV_MODEL}/weights.pt",
-    log:
-        LOGS / "download_smallvar_model.log",
-    resources:
-        mem_mb=2000,
-        runtime=30,
-    params:
-        bin=DORADO["bin"][str(DORADO["download_with"])],
-        model=SV_MODEL,
-        models_dir=DORADO_MODELS_DIR,
-    shell:
-        """
-        exec 2> {log}
-        tmp=$(mktemp -d -p {params.models_dir}); trap 'rm -rf "$tmp"' EXIT
-        {params.bin} download --model '{params.model}' --models-directory "$tmp"
-        mv "$tmp/{params.model}/config.toml" '{output.config}'
-        mv "$tmp/{params.model}/weights.pt" '{output.weights}'
-        """
-
-
-# Both download rules can make the smallvar model's files; this one handles the directory.
-ruleorder: download_smallvar_model > download_dorado_model
-
-
-localrules:
-    download_smallvar_model,
-
-
 rule call_dorado_smallvar:
     """dorado smallvar on the Arm's RG-reheadered BAM, with the smallvar model forced in
     (--model-override) and the whole genome hemizygous, so the calls are haploid. --any-bam

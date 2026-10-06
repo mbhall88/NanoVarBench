@@ -330,7 +330,7 @@ snakemake smallvar_pilot -s workflow/Snakefile --workflow-profile profiles/bunya
     --configfile config/local.yaml my_smallvar.yaml -n
 ```
 
-`download_smallvar_model` fetches the model into `dorado.models_dir`. The Bunya profile groups
+`download_dorado_model` fetches the model into `dorado.models_dir`, like the polishing model. The Bunya profile groups
 each Read set's Filter chain and two vcfdist runs into one Slurm job. Seam 1 runs the pilot for
 Arm D on the fixture, on CPU.
 

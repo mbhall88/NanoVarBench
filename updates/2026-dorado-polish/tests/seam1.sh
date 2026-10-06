@@ -19,7 +19,7 @@
 # with the AF filter at the lowest AF threshold beside it, and a reuse dry-run like the AF
 # filter's checks that only its own jobs are scheduled.
 # DORADO_MODELS_DIR defaults to $OUTDIR/models, which the workflow fills with
-# `dorado download` (needs internet). CLAIR3_MODELS_DIR defaults to
+# `dorado download` (needs internet); the seam then checks both models arrived whole (#32). CLAIR3_MODELS_DIR defaults to
 # $OUTDIR/clair3_models, which the workflow fills by downloading the HKU PyTorch Calling
 # models for Arm C and checking their SHA256s (needs internet). OUTDIR defaults to a new
 # temporary directory.
@@ -99,6 +99,21 @@ snakemake -s workflow/Snakefile --configfile "$OUTDIR/seam1_config/config.yaml" 
 python3 "$HERE/check_seam1.py" "$OUTDIR" "$FIXTURE/expected_tp.tsv" \
   --read-models $READ_MODELS --depths $DEPTHS --cpu-depth "$CPU_DEPTH"
 if [ -n "$ALIGNER_CHECK" ]; then python3 "$HERE/check_aligner_check.py" "$OUTDIR"; fi
+
+# With no DORADO_MODELS_DIR, the models dir started empty (#32): the polishing and smallvar
+# models must each have been downloaded whole, with no temporary download left behind.
+if [ -z "${DORADO_MODELS_DIR:-}" ]; then
+  n=0
+  for d in "$MODELS"/*/; do
+    for f in config.toml weights.pt; do
+      [ -s "$d$f" ] || { echo "FAIL fresh models dir: $d$f missing or empty" >&2; exit 1; }
+    done
+    case $(basename "$d") in tmp.*) echo "FAIL fresh models dir: leftover $d" >&2; exit 1;; esac
+    n=$((n + 1))
+  done
+  [ "$n" -eq 2 ] || { echo "FAIL fresh models dir: $n models in $MODELS, want 2" >&2; exit 1; }
+  echo "fresh models dir checks passed"
+fi
 
 # The AF filter reusing this run's Read sets, alignments and scores from a fresh work_dir: a
 # dry-run, whose job counts check_af_filter.py reads.

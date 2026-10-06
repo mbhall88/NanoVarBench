@@ -24,8 +24,11 @@ DORADO_DEVICE = "cpu" if DORADO["device"] == "cpu" else "gpu"  # for the benchma
 
 
 rule download_dorado_model:
-    """Fetch a Dorado polishing model into models_dir, so GPU nodes without internet can
-    read it locally. Skipped when the model is already there."""
+    """Fetch a Dorado model (a polishing model, or the smallvar pilot's) into models_dir, so
+    GPU nodes without internet can read it locally. Skipped when the model is already there.
+    `dorado download` skips a model whose directory exists, even empty, and Snakemake makes
+    the output's directory before the job runs, so it downloads to a temporary directory and
+    moves the files in (#32)."""
     output:
         config=DORADO_MODELS_DIR / "{model}/config.toml",
         weights=DORADO_MODELS_DIR / "{model}/weights.pt",
@@ -39,7 +42,11 @@ rule download_dorado_model:
         models_dir=DORADO_MODELS_DIR,
     shell:
         """
-        {params.bin} download --model {wildcards.model} --models-directory {params.models_dir} 2> {log}
+        exec 2> {log}
+        tmp=$(mktemp -d -p {params.models_dir}); trap 'rm -rf "$tmp"' EXIT
+        {params.bin} download --model '{wildcards.model}' --models-directory "$tmp"
+        mv "$tmp/{wildcards.model}/config.toml" '{output.config}'
+        mv "$tmp/{wildcards.model}/weights.pt" '{output.weights}'
         """
 
 
